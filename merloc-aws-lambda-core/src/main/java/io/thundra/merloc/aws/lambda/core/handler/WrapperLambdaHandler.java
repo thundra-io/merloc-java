@@ -8,6 +8,7 @@ import io.thundra.merloc.aws.lambda.core.config.ConfigManager;
 import io.thundra.merloc.aws.lambda.core.config.ConfigNames;
 import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
 import io.thundra.merloc.aws.lambda.core.utils.ClassUtils;
+import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
 import io.thundra.merloc.aws.lambda.core.utils.StringUtils;
 
 import java.io.ByteArrayInputStream;
@@ -203,6 +204,7 @@ public class WrapperLambdaHandler implements RequestStreamHandler {
 
                 responseSerializer.toJson(response, outputStream);
             } catch (Throwable t) {
+                ExceptionUtils.sneakyThrow(t);
                 throw new IOException("Error occurred while invoking handler", t);
             }
         }
@@ -242,6 +244,7 @@ public class WrapperLambdaHandler implements RequestStreamHandler {
             } catch (IOException e) {
                 throw e;
             } catch (Throwable t) {
+                ExceptionUtils.sneakyThrow(t);
                 throw new IOException("Error occurred while invoking handler", t);
             }
         }
