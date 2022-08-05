@@ -1,13 +1,15 @@
-package io.thundra.merloc.aws.lambda.runtime.embedded.config;
+package io.thundra.merloc.common.config;
 
-import io.thundra.merloc.aws.lambda.core.utils.StringUtils;
+import io.thundra.merloc.common.utils.StringUtils;
 
 /**
+ * Class for providing configurations.
+ *
  * @author serkan
  */
-public final class ConfigHelper {
+public final class ConfigManager {
 
-    private ConfigHelper() {
+    private ConfigManager() {
     }
 
     public static String getSystemPropertyName(String configName) {

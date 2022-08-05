@@ -5,16 +5,16 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
-import io.thundra.merloc.aws.lambda.core.utils.IOUtils;
 import io.thundra.merloc.aws.lambda.runtime.embedded.InvocationExecutor;
-import io.thundra.merloc.aws.lambda.runtime.embedded.config.ConfigHelper;
 import io.thundra.merloc.aws.lambda.runtime.embedded.domain.ErrorResponse;
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.FunctionInUseException;
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.RuntimeInUseException;
 import io.thundra.merloc.aws.lambda.runtime.embedded.handler.InvocationHandler;
-import io.thundra.merloc.aws.lambda.runtime.embedded.utils.ExecutorUtils;
+import io.thundra.merloc.common.config.ConfigManager;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ExceptionUtils;
+import io.thundra.merloc.common.utils.ExecutorUtils;
+import io.thundra.merloc.common.utils.IOUtils;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -116,7 +116,7 @@ public class HttpInvocationHandler implements InvocationHandler, HttpHandler {
                             error.getMessage(),
                             extractStackTrace(error));
             byte[] responseData = objectMapper.writeValueAsBytes(errorResponse);
-            if (StdLogger.DEBUG_ENABLE) {
+            if (StdLogger.DEBUG_ENABLED) {
                 StdLogger.debug(String.format(
                         "Sending error (handled=%b) response for invocation of function %s: %s",
                         handled, functionName, new String(responseData)));
@@ -128,7 +128,7 @@ public class HttpInvocationHandler implements InvocationHandler, HttpHandler {
             byte[] responseData = error.toString().getBytes();
             StdLogger.debug(String.format(
                     "Sending error (failed on error response) response for invocation of function %s: %s",
-                    handled, functionName, new String(responseData)));
+                    functionName, new String(responseData)));
             httpExchange.sendResponseHeaders(STATUS_CODE_FAIL, responseData.length);
             os.write(responseData);
         }
@@ -145,7 +145,7 @@ public class HttpInvocationHandler implements InvocationHandler, HttpHandler {
     }
 
     private static int getRuntimePort() {
-        return ConfigHelper.getIntegerConfig(RUNTIME_PORT_CONFIG_NAME, DEFAULT_RUNTIME_PORT);
+        return ConfigManager.getIntegerConfig(RUNTIME_PORT_CONFIG_NAME, DEFAULT_RUNTIME_PORT);
     }
 
     private static class InvalidHttpMethodException extends Exception {

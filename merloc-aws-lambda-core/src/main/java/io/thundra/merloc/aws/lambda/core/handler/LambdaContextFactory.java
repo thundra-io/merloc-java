@@ -5,9 +5,9 @@ import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.serialization.PojoSerializer;
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
 import io.thundra.merloc.aws.lambda.core.utils.LambdaUtils;
-import io.thundra.merloc.aws.lambda.core.utils.StringUtils;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.StringUtils;
 
 /**
  * @author serkan

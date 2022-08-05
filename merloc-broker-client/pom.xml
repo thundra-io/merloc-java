@@ -9,8 +9,8 @@
     </parent>
 
     <groupId>io.thundra.merloc</groupId>
-    <artifactId>merloc-aws-lambda-core</artifactId>
-    <name>merloc-aws-lambda-core</name>
+    <artifactId>merloc-broker-client</artifactId>
+    <name>merloc-broker-client</name>
     <packaging>jar</packaging>
 
     <dependencies>
@@ -19,24 +19,12 @@
             <artifactId>merloc-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-serialization</artifactId>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>

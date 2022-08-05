@@ -1,4 +1,4 @@
-package io.thundra.merloc.aws.lambda.core.utils;
+package io.thundra.merloc.common.utils;
 
 import java.util.Map;
 import java.util.function.Function;

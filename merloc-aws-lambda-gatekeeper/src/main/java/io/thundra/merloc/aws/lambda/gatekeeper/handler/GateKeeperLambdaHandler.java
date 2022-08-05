@@ -5,30 +5,29 @@ import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.lambda.runtime.serialization.PojoSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.thundra.merloc.aws.lambda.core.config.ConfigManager;
+import io.thundra.merloc.broker.client.BrokerClient;
+import io.thundra.merloc.broker.client.BrokerClientFactory;
+import io.thundra.merloc.broker.client.BrokerConstants;
+import io.thundra.merloc.broker.client.BrokerCredentials;
+import io.thundra.merloc.broker.client.BrokerMessage;
+import io.thundra.merloc.common.config.ConfigManager;
 import io.thundra.merloc.aws.lambda.core.handler.HandlerHelper;
 import io.thundra.merloc.aws.lambda.core.handler.WrapperLambdaHandler;
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
-import io.thundra.merloc.aws.lambda.core.utils.IOUtils;
 import io.thundra.merloc.aws.lambda.core.utils.LambdaUtils;
-import io.thundra.merloc.aws.lambda.core.utils.StringUtils;
 import io.thundra.merloc.aws.lambda.gatekeeper.config.ConfigNames;
-import okhttp3.Headers;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ClassUtils;
+import io.thundra.merloc.common.utils.ExceptionUtils;
+import io.thundra.merloc.common.utils.IOUtils;
+import io.thundra.merloc.common.utils.StringUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -39,197 +38,264 @@ import java.util.function.Supplier;
  */
 public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
 
-    private static final boolean ENABLE =
-            ConfigManager.getBooleanConfig(ConfigNames.ENABLE, true);
-    private static final String LAMBDA_RUNTIME_URL =
-            ConfigManager.getConfig(ConfigNames.LAMBDA_RUNTIME_URL);
-    private static final int LAMBDA_RUNTIME_PING_INTERVAL_ON_FAILURE =
-            ConfigManager.getIntegerConfig(ConfigNames.LAMBDA_RUNTIME_PING_INTERVAL_ON_FAILURE, 0);
-
-    private static final String AWS_REGION_HEADER_NAME = "X-Amz-Region";
-    private static final String AWS_REQUEST_ID_HEADER_NAME = "X-Amz-Request-Id";
-    private static final String AWS_HANDLER_HEADER_NAME = "X-Amz-Handler";
-    private static final String AWS_FUNCTION_ARN_HEADER_NAME = "X-Amz-Function-ARN";
-    private static final String AWS_FUNCTION_NAME_HEADER_NAME = "X-Amz-Function-Name";
-    private static final String AWS_FUNCTION_VERSION_HEADER_NAME = "X-Amz-Function-Version";
-    private static final String AWS_RUNTIME_HEADER_NAME = "X-Amz-Runtime";
-    private static final String AWS_TIMEOUT_HEADER_NAME = "X-Amz-Timeout";
-    private static final String AWS_MEMORY_SIZE_HEADER_NAME = "X-Amz-Memory-Size";
-    private static final String AWS_LOG_GROUP_NAME_HEADER_NAME = "X-Amz-Log-Group-Name";
-    private static final String AWS_LOG_STREAM_NAME_HEADER_NAME = "X-Amz-Log-Stream-Name";
-    private static final String AWS_ENV_VARS_HEADER_NAME = "X-Amz-Env-Vars";
-    private static final String AWS_CLIENT_CONTEXT_HEADER_NAME = "X-Amz-Client-Context";
-    private static final String AWS_COGNITO_IDENTITY_HEADER_NAME = "X-Amz-Cognito-Identity";
-
     private static final String MERLOC_LAMBDA_HANDLER_ENV_VAR_NAME = "MERLOC_AWS_LAMBDA_HANDLER";
     private static final String AWS_REGION_ENV_VAR_NAME = "AWS_REGION";
+    private static final String AWS_LAMBDA_FUNCTION_NAME_ENV_VAR_NAME = "AWS_LAMBDA_FUNCTION_NAME";
     private static final String AWS_EXECUTION_ENV_ENV_VAR_NAME = "AWS_EXECUTION_ENV";
-
-    private static final String CONTENT_TYPE_JSON_HEADER_VALUE = "'application/json";
     private static final String AWS_EXECUTION_ENV_PREFIX = "AWS_Lambda_";
 
-    private static final int PING_RESPONSE_SUCCESS_CODE = 200;
-    private static final int LAMBDA_RUNTIME_IS_IN_USE_CODE = 429;
-    private static final int LAMBDA_RUNTIME_IS_NOT_LIVE_CODE = 502;
-    private static final String PING_RESPONSE_SUCCESS_MESSAGE = "pong";
+    private static final String AWS_LAMBDA_REGION_ATTRIBUTE_NAME = "region";
+    private static final String AWS_LAMBDA_REQUEST_ID_ATTRIBUTE_NAME = "requestId";
+    private static final String AWS_LAMBDA_HANDLER_ATTRIBUTE_NAME = "handler";
+    private static final String AWS_LAMBDA_FUNCTION_ARN_ATTRIBUTE_NAME = "functionArn";
+    private static final String AWS_LAMBDA_FUNCTION_NAME_ATTRIBUTE_NAME = "functionName";
+    private static final String AWS_LAMBDA_FUNCTION_VERSION_ATTRIBUTE_NAME = "functionVersion";
+    private static final String AWS_LAMBDA_RUNTIME_ATTRIBUTE_NAME = "runtime";
+    private static final String AWS_LAMBDA_TIMEOUT_ATTRIBUTE_NAME = "timeout";
+    private static final String AWS_LAMBDA_MEMORY_SIZE_ATTRIBUTE_NAME = "memorySize";
+    private static final String AWS_LAMBDA_LOG_GROUP_NAME_ATTRIBUTE_NAME = "logGroupName";
+    private static final String AWS_LAMBDA_LOG_STREAM_NAME_ATTRIBUTE_NAME = "logStreamName";
+    private static final String AWS_LAMBDA_ENV_VARS_ATTRIBUTE_NAME = "envVars";
+    private static final String AWS_LAMBDA_CLIENT_CONTEXT_ATTRIBUTE_NAME = "clientContext";
+    private static final String AWS_LAMBDA_COGNITO_IDENTITY_ATTRIBUTE_NAME = "cognitoIdentity";
+    private static final String AWS_LAMBDA_REQUEST_ATTRIBUTE_NAME = "request";
+    
+    private static final boolean ENABLE =
+            ConfigManager.getBooleanConfig(ConfigNames.ENABLE, true);
+    private static final String BROKER_HOST =
+            ConfigManager.getConfig(ConfigNames.BROKER_HOST_CONFIG_NAME);
+    private static final String BROKER_CONNECTION_NAME =
+            ConfigManager.getConfig(
+                    ConfigNames.BROKER_CONNECTION_NAME_CONFIG_NAME,
+                    LambdaUtils.getEnvVar(AWS_LAMBDA_FUNCTION_NAME_ENV_VAR_NAME));
+    private static final int CLIENT_ACCESS_INTERVAL_ON_FAILURE =
+            ConfigManager.getIntegerConfig(
+                    ConfigNames.CLIENT_ACCESS_INTERVAL_ON_FAILURE, 0);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final PojoSerializer<ClientContext> clientContextSerializer =
             HandlerHelper.getSerializer(ClientContext.class);
     private final PojoSerializer<CognitoIdentity> cognitoIdentitySerializer =
             HandlerHelper.getSerializer(CognitoIdentity.class);
-    private final OkHttpClient lambdaRuntimeMessageClient =
-            new OkHttpClient.Builder().
-                connectTimeout(10, TimeUnit.SECONDS).
-                writeTimeout(30, TimeUnit.SECONDS).
-                readTimeout(5, TimeUnit.MINUTES).
-                build();
-    private final OkHttpClient lambdaRuntimePingClient =
-            lambdaRuntimeMessageClient.
-                    newBuilder().
-                    connectTimeout(3, TimeUnit.SECONDS).
-                    writeTimeout(3, TimeUnit.SECONDS).
-                    readTimeout(3, TimeUnit.SECONDS).
-                    build();
-    private long latestPingFailTime = -1;
+
+    private long latestClientAccessFailTime = -1;
 
     @Override
     protected Future<RequestStreamHandler> getProxyLambdaHandler(Supplier<RequestStreamHandler> handlerSupplier) {
         return CompletableFuture.supplyAsync(handlerSupplier);
     }
 
-    private Map<String, String> createRequestHeaders(Context context) throws IOException {
-        Map<String, String> requestHeaders = new HashMap<>();
+    private static BrokerClient createBrokerClient() {
+        StdLogger.debug(String.format(
+                "Creating broker client to %s with connection name %s",
+                BROKER_HOST,
+                BROKER_CONNECTION_NAME));
+        try {
+            return BrokerClientFactory.createWebSocketClient(
+                    BROKER_HOST,
+                    new BrokerCredentials().
+                            withConnectionName(BROKER_CONNECTION_NAME),
+                    null, null, null);
+        } catch (Exception e) {
+            StdLogger.error("Unable to create broker client", e);
+            return null;
+        }
+    }
 
-        requestHeaders.put(AWS_REGION_HEADER_NAME, LambdaUtils.getEnvVar(AWS_REGION_ENV_VAR_NAME));
-        requestHeaders.put(AWS_REQUEST_ID_HEADER_NAME, context.getAwsRequestId());
-        requestHeaders.put(AWS_HANDLER_HEADER_NAME, LambdaUtils.getEnvVar(MERLOC_LAMBDA_HANDLER_ENV_VAR_NAME));
-        requestHeaders.put(AWS_FUNCTION_ARN_HEADER_NAME, context.getInvokedFunctionArn());
-        requestHeaders.put(AWS_FUNCTION_NAME_HEADER_NAME, context.getFunctionName());
-        requestHeaders.put(AWS_FUNCTION_VERSION_HEADER_NAME, context.getFunctionVersion());
-        requestHeaders.put(AWS_RUNTIME_HEADER_NAME,
+    private BrokerMessage createClientRequest(Context context, String requestData) throws IOException {
+        BrokerMessage.Data data = new BrokerMessage.Data();
+
+        data.put(AWS_LAMBDA_REGION_ATTRIBUTE_NAME, LambdaUtils.getEnvVar(AWS_REGION_ENV_VAR_NAME));
+        data.put(AWS_LAMBDA_REQUEST_ID_ATTRIBUTE_NAME, context.getAwsRequestId());
+        data.put(AWS_LAMBDA_HANDLER_ATTRIBUTE_NAME, LambdaUtils.getEnvVar(MERLOC_LAMBDA_HANDLER_ENV_VAR_NAME));
+        data.put(AWS_LAMBDA_FUNCTION_ARN_ATTRIBUTE_NAME, context.getInvokedFunctionArn());
+        data.put(AWS_LAMBDA_FUNCTION_NAME_ATTRIBUTE_NAME, context.getFunctionName());
+        data.put(AWS_LAMBDA_FUNCTION_VERSION_ATTRIBUTE_NAME, context.getFunctionVersion());
+        data.put(AWS_LAMBDA_RUNTIME_ATTRIBUTE_NAME,
                 LambdaUtils.getEnvVar(AWS_EXECUTION_ENV_ENV_VAR_NAME).substring(AWS_EXECUTION_ENV_PREFIX.length()));
-        requestHeaders.put(AWS_TIMEOUT_HEADER_NAME, String.valueOf(context.getRemainingTimeInMillis()));
-        requestHeaders.put(AWS_MEMORY_SIZE_HEADER_NAME, String.valueOf(context.getMemoryLimitInMB()));
-        requestHeaders.put(AWS_LOG_GROUP_NAME_HEADER_NAME, context.getLogGroupName());
-        requestHeaders.put(AWS_LOG_STREAM_NAME_HEADER_NAME, context.getLogStreamName());
+        data.put(AWS_LAMBDA_TIMEOUT_ATTRIBUTE_NAME, context.getRemainingTimeInMillis());
+        data.put(AWS_LAMBDA_MEMORY_SIZE_ATTRIBUTE_NAME, context.getMemoryLimitInMB());
+        data.put(AWS_LAMBDA_LOG_GROUP_NAME_ATTRIBUTE_NAME, context.getLogGroupName());
+        data.put(AWS_LAMBDA_LOG_STREAM_NAME_ATTRIBUTE_NAME, context.getLogStreamName());
 
-        requestHeaders.put(AWS_ENV_VARS_HEADER_NAME, objectMapper.writeValueAsString(LambdaUtils.getEnvVars()));
+        data.put(AWS_LAMBDA_ENV_VARS_ATTRIBUTE_NAME, LambdaUtils.getEnvVars());
 
         ClientContext clientContext = context.getClientContext();
         if (clientContext != null) {
             ByteArrayOutputStream clientContextOutputStream = new ByteArrayOutputStream();
             clientContextSerializer.toJson(clientContext, clientContextOutputStream);
-            requestHeaders.put(AWS_CLIENT_CONTEXT_HEADER_NAME, new String(clientContextOutputStream.toByteArray()));
+            data.put(AWS_LAMBDA_CLIENT_CONTEXT_ATTRIBUTE_NAME, new String(clientContextOutputStream.toByteArray()));
         }
 
         CognitoIdentity cognitoIdentity = context.getIdentity();
         if (cognitoIdentity != null) {
             ByteArrayOutputStream cognitoIdentityOutputStream = new ByteArrayOutputStream();
             cognitoIdentitySerializer.toJson(cognitoIdentity, cognitoIdentityOutputStream);
-            requestHeaders.put(AWS_COGNITO_IDENTITY_HEADER_NAME, new String(cognitoIdentityOutputStream.toByteArray()));
+            data.put(AWS_LAMBDA_COGNITO_IDENTITY_ATTRIBUTE_NAME, new String(cognitoIdentityOutputStream.toByteArray()));
         }
 
-        return requestHeaders;
+        data.put(AWS_LAMBDA_REQUEST_ATTRIBUTE_NAME, requestData);
+
+        return new BrokerMessage().
+                withId(UUID.randomUUID().toString()).
+                withType(BrokerConstants.CLIENT_REQUEST_MESSAGE_TYPE).
+                withConnectionName(BROKER_CONNECTION_NAME).
+                withSourceConnectionType(BrokerConstants.GATEKEEPER_CONNECTION_TYPE).
+                withTargetConnectionType(BrokerConstants.CLIENT_CONNECTION_TYPE).
+                withData(data);
     }
 
     @Override
     protected boolean onRequest(InputStream requestStream, OutputStream responseStream, Context context) {
+        boolean throwError = false;
         if (!ENABLE) {
             StdLogger.debug("MerLoc is disabled, so forwarding request to the actual handler");
             return true;
         }
-        if (StringUtils.isNullOrEmpty(LAMBDA_RUNTIME_URL)) {
-            StdLogger.debug("Lambda runtime URL is empty so forwarding request to the actual handler");
+        if (StringUtils.isNullOrEmpty(BROKER_HOST)) {
+            StdLogger.debug("Broker host is empty so forwarding request to the actual handler");
             return true;
         }
         try {
             long currentTime = System.currentTimeMillis();
-            if (LAMBDA_RUNTIME_PING_INTERVAL_ON_FAILURE > 0 && latestPingFailTime > 0) {
-                long passedSecondsFromLatestPingFail = (currentTime - latestPingFailTime) / 1000;
+            if (CLIENT_ACCESS_INTERVAL_ON_FAILURE > 0 && latestClientAccessFailTime > 0) {
+                long passedSecondsFromLatestClientAccessFail = (currentTime - latestClientAccessFailTime) / 1000;
                 StdLogger.debug(String.format(
-                        "%d seconds have passed since latest ping fail", passedSecondsFromLatestPingFail));
-                if (passedSecondsFromLatestPingFail < LAMBDA_RUNTIME_PING_INTERVAL_ON_FAILURE) {
+                        "%d seconds have passed since latest client access fail", passedSecondsFromLatestClientAccessFail));
+                if (passedSecondsFromLatestClientAccessFail < CLIENT_ACCESS_INTERVAL_ON_FAILURE) {
                     StdLogger.debug(String.format(
                             "Forwarding request to the actual handler because not enough time (%d secs < %d secs) has passed " +
-                                    "since latest ping fail",
-                            passedSecondsFromLatestPingFail, LAMBDA_RUNTIME_PING_INTERVAL_ON_FAILURE));
+                                    "since latest client access fail",
+                            passedSecondsFromLatestClientAccessFail, CLIENT_ACCESS_INTERVAL_ON_FAILURE));
                     return true;
                 }
             }
-            if (isLambdaRuntimeUp()) {
-                Map<String, String> requestHeaders = createRequestHeaders(context);
-                if (StdLogger.DEBUG_ENABLE) {
-                    StdLogger.debug(String.format("Created request headers: %s", requestHeaders));
+
+            BrokerClient brokerClient = createBrokerClient();
+            if (brokerClient == null) {
+                StdLogger.debug("Broker client could not be created so forwarding request to the actual handler");
+                return true;
+            }
+
+            try {
+                boolean connected = brokerClient.waitUntilConnected(3, TimeUnit.SECONDS);
+                if (!connected) {
+                    StdLogger.debug("Could not connect to broker so forwarding request to the actual handler");
+                    return true;
                 }
 
                 String requestData = IOUtils.readAllAsString(requestStream);
 
-                if (StdLogger.DEBUG_ENABLE) {
+                if (StdLogger.DEBUG_ENABLED) {
                     StdLogger.debug(String.format(
-                            "Forwarding request to Lambda runtime: %s", requestData));
+                            "Forwarding request to client: %s", requestData));
                 }
 
-                Request request =
-                        new Request.Builder().
-                                url(LAMBDA_RUNTIME_URL).
-                                headers(Headers.of(requestHeaders)).
-                                post(RequestBody.create(MediaType.get(CONTENT_TYPE_JSON_HEADER_VALUE), requestData)).
-                                build();
-                Response response = lambdaRuntimeMessageClient.newCall(request).execute();
-
-                byte[] responseData = response.body().bytes();
-                if (StdLogger.DEBUG_ENABLE) {
-                    StdLogger.debug(String.format(
-                            "Received response from Lambda runtime: %s", new String(responseData)));
+                BrokerMessage clientRequest = createClientRequest(context, requestData);
+                BrokerMessage clientResponse =
+                        brokerClient.sendAndGetResponse(
+                                clientRequest,
+                                context.getRemainingTimeInMillis(), TimeUnit.MILLISECONDS);
+                if (clientResponse == null) {
+                    // No response neither from client nor from broker.
+                    // So update the latest client access fail time.
+                    latestClientAccessFailTime = currentTime;
+                    StdLogger.debug(String.format("Couldn't get response to client request"));
+                    return true;
                 }
-                responseStream.write(responseData);
+                BrokerMessage.Error error = clientResponse.getError();
+                if (error != null) {
+                    if (BrokerConstants.BROKER_CONNECTION_TYPE.equals(clientResponse.getSourceConnectionType())) {
+                        // Response is coming from broker, not client.
+                        // So update the latest client access fail time.
+                        latestClientAccessFailTime = currentTime;
+                    }
+                    if (error.isInternal()) {
+                        StdLogger.debug(String.format("Internal client request error: %s", error.getMessage()));
+                        return true;
+                    } else {
+                        StdLogger.debug(String.format("Client request error: %s", error.getMessage()));
+                        Throwable clientRequestError = createClientRequestError(error);
+                        throwError = true;
+                        ExceptionUtils.sneakyThrow(clientRequestError);
+                        return false;
+                    }
+                }
+
+                String responseData = clientResponse.getDataAttribute("response");
+                if (StdLogger.DEBUG_ENABLED) {
+                    StdLogger.debug(String.format(
+                            "Received response from client: %s", responseData));
+                }
+
+                responseStream.write(responseData.getBytes(StandardCharsets.UTF_8));
 
                 return false;
-            } else {
-                latestPingFailTime = currentTime;
-                StdLogger.debug("Lambda runtime is not up");
+            } catch (Throwable t) {
+                // Unexpected error.
+                // So update the latest client access fail time.
+                latestClientAccessFailTime = currentTime;
+                if (throwError) {
+                    ExceptionUtils.sneakyThrow(t);
+                }
+                StdLogger.error("Client access failed", t);
+            } finally {
+                try {
+                    brokerClient.close();
+                    brokerClient.waitUntilClosed(3, TimeUnit.SECONDS);
+                    brokerClient.destroy();
+                } catch (Throwable t) {
+                    StdLogger.error("Couldn't close broker client", t);
+                }
             }
         } catch (Throwable t) {
-            StdLogger.error("Lambda runtime failed to handle request", t);
+            StdLogger.error("Client failed to handle request", t);
+            if (throwError) {
+                StdLogger.error(String.format(
+                        "Throwing client error (type=%s, message=%s)", t.getClass().getName(), t.getMessage()),
+                        t);
+                ExceptionUtils.sneakyThrow(t);
+            }
         }
         return true;
     }
 
-    private boolean isLambdaRuntimeUp() {
-        StdLogger.debug("Checking whether Lambda runtime is up ...");
+    private <T> Constructor<T> getConstructorSafe(Class<T> clazz, Class<?>... parameterTypes) {
         try {
-            Request request =
-                    new Request.Builder().
-                            url(LAMBDA_RUNTIME_URL + "/ping").
-                            get().
-                            build();
-            Response response = lambdaRuntimePingClient.newCall(request).execute();
-            if (response.code() == PING_RESPONSE_SUCCESS_CODE) {
-                ResponseBody responseBody = response.body();
-                String responseMessage = responseBody != null ? responseBody.string() : null;
-                if (PING_RESPONSE_SUCCESS_MESSAGE.equals(responseMessage)) {
-                    StdLogger.debug("Lambda runtime is up");
-                    return true;
-                } else {
-                    StdLogger.debug(String.format("Unexpected Lambda runtime ping response message: %s", responseMessage));
-                    return false;
-                }
-            } else if (response.code() == LAMBDA_RUNTIME_IS_NOT_LIVE_CODE) {
-                StdLogger.debug("Lambda runtime is not running");
-                return false;
-            } else if (response.code() == LAMBDA_RUNTIME_IS_IN_USE_CODE) {
-                StdLogger.debug("Lambda runtime is already handling another invocation of this function");
-                return false;
-            } else {
-                StdLogger.debug(String.format("Unexpected Lambda runtime ping response code: %d", response.code()));
-                return false;
-            }
-        } catch (Throwable t) {
-            StdLogger.debug(String.format("Lambda runtime ping request failed: %s", t.getMessage()));
-            StdLogger.debug(ExceptionUtils.toString(t));
-            return false;
+            return clazz.getConstructor(parameterTypes);
+        } catch (NoSuchMethodException e) {
+            return null;
         }
+    }
+
+    private Throwable createClientRequestError(BrokerMessage.Error error) {
+        String errorType = error.getType();
+        String errorMessage = error.getMessage();
+        if (StringUtils.hasValue(errorType)) {
+            Class<? extends Throwable> errorClass =
+                    ClassUtils.getClass(getClass().getClassLoader(), errorType);
+            if (errorClass != null) {
+                Constructor<? extends Throwable> ctor = getConstructorSafe(errorClass, String.class);
+                if (ctor != null) {
+                    try {
+                        return ctor.newInstance(errorMessage);
+                    } catch (Exception e) {
+                        StdLogger.error(String.format(
+                                "Unable to create client request error: %s", errorType), e);
+                    }
+                } else {
+                    ctor = getConstructorSafe(errorClass, String.class, Throwable.class);
+                    if (ctor != null) {
+                        try {
+                            return ctor.newInstance(errorMessage, null);
+                        } catch (Exception e) {
+                            StdLogger.error(String.format(
+                                    "Unable to create client request error: %s", errorType), e);
+                        }
+                    }
+                }
+            }
+        }
+        return new RuntimeException(errorMessage);
     }
 
 }

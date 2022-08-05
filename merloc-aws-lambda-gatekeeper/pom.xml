@@ -19,8 +19,8 @@
             <artifactId>merloc-aws-lambda-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
+            <groupId>io.thundra.merloc</groupId>
+            <artifactId>merloc-broker-client</artifactId>
         </dependency>
     </dependencies>
 

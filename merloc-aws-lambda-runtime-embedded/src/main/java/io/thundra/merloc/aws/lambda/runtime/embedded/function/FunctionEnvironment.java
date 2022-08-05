@@ -1,10 +1,11 @@
 package io.thundra.merloc.aws.lambda.runtime.embedded.function;
 
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
 import io.thundra.merloc.aws.lambda.runtime.embedded.ManagedEnvironmentVariables;
 import io.thundra.merloc.aws.lambda.runtime.embedded.ManagedSystemProperties;
+import io.thundra.merloc.aws.lambda.runtime.embedded.exception.HandlerExecutionException;
 import io.thundra.merloc.aws.lambda.runtime.embedded.io.ManagedOutputStream;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ExceptionUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -228,7 +229,7 @@ public class FunctionEnvironment {
                 t = t.getCause();
             }
             StdLogger.error(String.format("Failed execution of function %s", functionName), t);
-            ExceptionUtils.sneakyThrow(t);
+            throw new HandlerExecutionException(t);
         }
     }
 

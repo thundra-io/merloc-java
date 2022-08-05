@@ -1,8 +1,5 @@
 package io.thundra.merloc.aws.lambda.runtime.embedded;
 
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
-import io.thundra.merloc.aws.lambda.core.utils.StringUtils;
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.FunctionInUseException;
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.InvalidRequestException;
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.RuntimeInUseException;
@@ -14,6 +11,9 @@ import io.thundra.merloc.aws.lambda.runtime.embedded.utils.ClassLoaderUtils;
 import io.thundra.merloc.aws.lambda.runtime.embedded.watcher.ClassPathChangeListener;
 import io.thundra.merloc.aws.lambda.runtime.embedded.watcher.ClassPathWatcher;
 import io.thundra.merloc.aws.lambda.runtime.embedded.watcher.FileChangeEvent;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ExceptionUtils;
+import io.thundra.merloc.common.utils.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -412,7 +412,7 @@ public class InvocationExecutor implements Closeable {
             StdLogger.debug(String.format("Executed function environment for function %s", functionName));
 
             byte[] response = responseStream.toByteArray();
-            if (StdLogger.DEBUG_ENABLE) {
+            if (StdLogger.DEBUG_ENABLED) {
                 StdLogger.debug(String.format(
                         "Executed handler for function %s and received response: %s",
                         functionName, new String(response)));
@@ -442,7 +442,7 @@ public class InvocationExecutor implements Closeable {
         Lock handleLock = handlerLock.readLock();
         handleLock.lock();
         try {
-            if (StdLogger.DEBUG_ENABLE) {
+            if (StdLogger.DEBUG_ENABLED) {
                 StdLogger.debug(String.format(
                         "Received request data for the invocation function %s: %s",
                         functionName, request));
@@ -502,7 +502,7 @@ public class InvocationExecutor implements Closeable {
 
             String response = new String(responseData);
 
-            if (StdLogger.DEBUG_ENABLE) {
+            if (StdLogger.DEBUG_ENABLED) {
                 StdLogger.debug(String.format(
                         "Writing response data for the invocation function %s: %s",
                         functionName, response));

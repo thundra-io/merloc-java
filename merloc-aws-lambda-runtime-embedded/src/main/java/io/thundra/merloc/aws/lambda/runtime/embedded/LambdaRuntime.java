@@ -1,13 +1,13 @@
 package io.thundra.merloc.aws.lambda.runtime.embedded;
 
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.core.utils.IOUtils;
-import io.thundra.merloc.aws.lambda.core.utils.ReflectionUtils;
-import io.thundra.merloc.aws.lambda.runtime.embedded.config.ConfigHelper;
 import io.thundra.merloc.aws.lambda.runtime.embedded.function.FunctionEnvironmentInitializer;
 import io.thundra.merloc.aws.lambda.runtime.embedded.handler.InvocationHandler;
 import io.thundra.merloc.aws.lambda.runtime.embedded.handler.InvocationHandlerFactory;
 import io.thundra.merloc.aws.lambda.runtime.embedded.io.ManagedOutputStream;
+import io.thundra.merloc.common.config.ConfigManager;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.IOUtils;
+import io.thundra.merloc.common.utils.ReflectionUtils;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -81,7 +81,7 @@ public class LambdaRuntime {
 
     private static LambdaRuntimeConcurrencyMode getLambdaRuntimeConcurrencyMode() {
         LambdaRuntimeConcurrencyMode lambdaRuntimeConcurrencyMode =
-                LambdaRuntimeConcurrencyMode.of(ConfigHelper.getConfig(RUNTIME_CONCURRENCY_MODE_CONFIG_NAME));
+                LambdaRuntimeConcurrencyMode.of(ConfigManager.getConfig(RUNTIME_CONCURRENCY_MODE_CONFIG_NAME));
         if (lambdaRuntimeConcurrencyMode == null) {
             // By default, runtime concurrency mode is "REJECT"
             lambdaRuntimeConcurrencyMode = LambdaRuntimeConcurrencyMode.REJECT;
@@ -91,7 +91,7 @@ public class LambdaRuntime {
 
     private static FunctionConcurrencyMode getFunctionConcurrencyMode() {
         FunctionConcurrencyMode functionConcurrencyMode =
-                FunctionConcurrencyMode.of(ConfigHelper.getConfig(FUNCTION_CONCURRENCY_MODE_CONFIG_NAME));
+                FunctionConcurrencyMode.of(ConfigManager.getConfig(FUNCTION_CONCURRENCY_MODE_CONFIG_NAME));
         if (functionConcurrencyMode == null) {
             // By default, function concurrency mode is "REJECT"
             functionConcurrencyMode = FunctionConcurrencyMode.REJECT;

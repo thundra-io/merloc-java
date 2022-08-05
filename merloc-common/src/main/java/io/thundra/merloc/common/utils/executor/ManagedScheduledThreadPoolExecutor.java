@@ -1,4 +1,4 @@
-package io.thundra.merloc.aws.lambda.runtime.embedded.utils.executor;
+package io.thundra.merloc.common.utils.executor;
 
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledThreadPoolExecutor;

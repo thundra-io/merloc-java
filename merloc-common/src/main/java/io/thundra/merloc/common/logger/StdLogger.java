@@ -1,7 +1,7 @@
-package io.thundra.merloc.aws.lambda.core.logger;
+package io.thundra.merloc.common.logger;
 
-import io.thundra.merloc.aws.lambda.core.config.ConfigManager;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
+import io.thundra.merloc.common.config.ConfigManager;
+import io.thundra.merloc.common.utils.ExceptionUtils;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -17,11 +17,12 @@ public final class StdLogger {
     private static final String MERLOC_PREFIX = "[MERLOC] ";
     private static final String DEBUG_LEVEL = "DEBUG ";
     private static final String INFO_LEVEL = "INFO  ";
+    private static final String WARN_LEVEL = "WARN  ";
     private static final String ERROR_LEVEL = "ERROR ";
     private static final String DEBUG_ENABLE_ENV_VAR_NAME = "MERLOC_DEBUG_ENABLE";
     private static final DateFormat TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
-    public static final boolean DEBUG_ENABLE = isDebugEnabled();
+    public static final boolean DEBUG_ENABLED = isDebugEnabled();
 
     private StdLogger() {
     }
@@ -39,13 +40,17 @@ public final class StdLogger {
     }
 
     public static void debug(String message) {
-        if (DEBUG_ENABLE) {
+        if (DEBUG_ENABLED) {
             System.out.println(getLogPrefix(DEBUG_LEVEL) + message);
         }
     }
 
     public static void info(String message) {
         System.out.println(getLogPrefix(INFO_LEVEL) + message);
+    }
+
+    public static void warn(String message) {
+        System.err.println(getLogPrefix(WARN_LEVEL) + message);
     }
 
     public static void error(String message) {

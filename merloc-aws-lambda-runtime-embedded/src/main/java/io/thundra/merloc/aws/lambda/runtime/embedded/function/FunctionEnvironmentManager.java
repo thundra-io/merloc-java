@@ -1,13 +1,13 @@
 package io.thundra.merloc.aws.lambda.runtime.embedded.function;
 
-import io.thundra.merloc.aws.lambda.core.utils.ClassUtils;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
 import io.thundra.merloc.aws.lambda.runtime.embedded.ManagedEnvironmentVariables;
 import io.thundra.merloc.aws.lambda.runtime.embedded.ManagedSystemProperties;
 import io.thundra.merloc.aws.lambda.runtime.embedded.domain.FunctionEnvironmentInfo;
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
 import io.thundra.merloc.aws.lambda.runtime.embedded.io.ManagedOutputStream;
-import io.thundra.merloc.aws.lambda.runtime.embedded.utils.ExecutorUtils;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ClassUtils;
+import io.thundra.merloc.common.utils.ExceptionUtils;
+import io.thundra.merloc.common.utils.ExecutorUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;

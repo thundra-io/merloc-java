@@ -1,4 +1,4 @@
-package io.thundra.merloc.aws.lambda.core.utils;
+package io.thundra.merloc.common.utils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;

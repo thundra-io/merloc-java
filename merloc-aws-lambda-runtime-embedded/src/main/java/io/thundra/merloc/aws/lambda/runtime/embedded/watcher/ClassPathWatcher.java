@@ -1,7 +1,7 @@
 package io.thundra.merloc.aws.lambda.runtime.embedded.watcher;
 
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.runtime.embedded.utils.ExecutorUtils;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ExecutorUtils;
 
 import java.io.IOException;
 import java.net.URISyntaxException;

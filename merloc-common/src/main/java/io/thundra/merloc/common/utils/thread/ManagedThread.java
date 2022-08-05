@@ -1,4 +1,4 @@
-package io.thundra.merloc.aws.lambda.runtime.embedded.utils.thread;
+package io.thundra.merloc.common.utils.thread;
 
 /**
  * @author serkan

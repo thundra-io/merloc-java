@@ -45,6 +45,8 @@
     </properties>
 
     <modules>
+        <module>merloc-common</module>
+        <module>merloc-broker-client</module>
         <module>merloc-aws-lambda-core</module>
         <module>merloc-aws-lambda-gatekeeper</module>
         <module>merloc-aws-lambda-runtime-embedded</module>
@@ -54,6 +56,16 @@
         <dependencies>
             <!-- MerLoc dependencies                        -->
             <!-- ========================================== -->
+            <dependency>
+                <groupId>io.thundra.merloc</groupId>
+                <artifactId>merloc-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.thundra.merloc</groupId>
+                <artifactId>merloc-broker-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.thundra.merloc</groupId>
                 <artifactId>merloc-aws-lambda-core</artifactId>

@@ -1,7 +1,7 @@
-package io.thundra.merloc.aws.lambda.runtime.embedded.utils;
+package io.thundra.merloc.common.utils;
 
-import io.thundra.merloc.aws.lambda.runtime.embedded.utils.executor.ManagedScheduledThreadPoolExecutor;
-import io.thundra.merloc.aws.lambda.runtime.embedded.utils.executor.ManagedThreadPoolExecutor;
+import io.thundra.merloc.common.utils.executor.ManagedScheduledThreadPoolExecutor;
+import io.thundra.merloc.common.utils.executor.ManagedThreadPoolExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -25,33 +25,59 @@ public final class ExecutorUtils {
     }
 
     public static ExecutorService newFixedExecutorService(int nThreads, String threadNamePrefix) {
+        return newFixedExecutorService(nThreads, threadNamePrefix, true);
+    }
+
+    public static ExecutorService newFixedExecutorService(int nThreads, String threadNamePrefix,
+                                                          boolean daemon) {
         return new ManagedThreadPoolExecutor(nThreads, nThreads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
-                ThreadUtils.newDaemonThreadFactory(threadNamePrefix));
+                daemon  ? ThreadUtils.newDaemonThreadFactory(threadNamePrefix)
+                        : ThreadUtils.newThreadFactory(threadNamePrefix));
     }
 
     public static ExecutorService newFixedExecutorService(ThreadGroup threadGroup,
                                                           int nThreads, String threadNamePrefix) {
+        return newFixedExecutorService(threadGroup, nThreads, threadNamePrefix, true);
+    }
+
+    public static ExecutorService newFixedExecutorService(ThreadGroup threadGroup,
+                                                          int nThreads, String threadNamePrefix,
+                                                          boolean daemon) {
         return new ManagedThreadPoolExecutor(nThreads, nThreads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
-                ThreadUtils.newDaemonThreadFactory(threadGroup, threadNamePrefix));
+                daemon  ? ThreadUtils.newDaemonThreadFactory(threadGroup, threadNamePrefix)
+                        : ThreadUtils.newThreadFactory(threadGroup, threadNamePrefix));
     }
 
     public static ExecutorService newCachedExecutorService(String threadNamePrefix) {
+        return newCachedExecutorService(threadNamePrefix, true);
+    }
+
+    public static ExecutorService newCachedExecutorService(String threadNamePrefix,
+                                                           boolean daemon) {
         return new ManagedThreadPoolExecutor(0, Integer.MAX_VALUE,
                 DEFAULT_KEEP_ALIVE_TIME_IN_SECS, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
-                ThreadUtils.newDaemonThreadFactory(threadNamePrefix));
+                daemon  ? ThreadUtils.newDaemonThreadFactory(threadNamePrefix)
+                        : ThreadUtils.newThreadFactory(threadNamePrefix));
     }
 
     public static ExecutorService newCachedExecutorService(ThreadGroup threadGroup,
                                                            String threadNamePrefix) {
+        return newCachedExecutorService(threadGroup, threadNamePrefix, true);
+    }
+
+    public static ExecutorService newCachedExecutorService(ThreadGroup threadGroup,
+                                                           String threadNamePrefix,
+                                                           boolean daemon) {
         return new ManagedThreadPoolExecutor(0, Integer.MAX_VALUE,
                 DEFAULT_KEEP_ALIVE_TIME_IN_SECS, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
-                ThreadUtils.newDaemonThreadFactory(threadGroup, threadNamePrefix));
+                daemon  ? ThreadUtils.newDaemonThreadFactory(threadGroup, threadNamePrefix)
+                        : ThreadUtils.newThreadFactory(threadGroup, threadNamePrefix));
     }
 
     public static ExecutorService newMaxSizedExecutorService(int maxSize, String threadNamePrefix) {

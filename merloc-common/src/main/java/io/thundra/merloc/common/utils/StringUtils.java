@@ -1,4 +1,4 @@
-package io.thundra.merloc.aws.lambda.core.utils;
+package io.thundra.merloc.common.utils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

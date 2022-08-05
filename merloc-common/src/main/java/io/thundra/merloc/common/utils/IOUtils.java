@@ -1,6 +1,6 @@
-package io.thundra.merloc.aws.lambda.core.utils;
+package io.thundra.merloc.common.utils;
 
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
+import io.thundra.merloc.common.logger.StdLogger;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

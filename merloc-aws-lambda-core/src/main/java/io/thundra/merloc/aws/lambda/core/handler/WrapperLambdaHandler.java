@@ -4,12 +4,12 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.lambda.runtime.serialization.PojoSerializer;
-import io.thundra.merloc.aws.lambda.core.config.ConfigManager;
+import io.thundra.merloc.common.config.ConfigManager;
 import io.thundra.merloc.aws.lambda.core.config.ConfigNames;
-import io.thundra.merloc.aws.lambda.core.logger.StdLogger;
-import io.thundra.merloc.aws.lambda.core.utils.ClassUtils;
-import io.thundra.merloc.aws.lambda.core.utils.ExceptionUtils;
-import io.thundra.merloc.aws.lambda.core.utils.StringUtils;
+import io.thundra.merloc.common.logger.StdLogger;
+import io.thundra.merloc.common.utils.ClassUtils;
+import io.thundra.merloc.common.utils.ExceptionUtils;
+import io.thundra.merloc.common.utils.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -120,6 +120,7 @@ public class WrapperLambdaHandler implements RequestStreamHandler {
             continueRequest = onRequest(wrapperInputStream, responseStream, context);
         } catch (Throwable t) {
             StdLogger.error("Error occurred while on request", t);
+            ExceptionUtils.sneakyThrow(t);
         }
 
         if (continueRequest) {
