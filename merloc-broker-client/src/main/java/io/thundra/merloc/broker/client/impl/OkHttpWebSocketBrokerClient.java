@@ -46,6 +46,7 @@ public final class OkHttpWebSocketBrokerClient
 
     private static final String API_KEY_HEADER_NAME = "x-api-key";
     private static final int MAX_FRAME_SIZE = (16 * 1024);
+    private static final int NORMAL_CLOSE_CODE = 1000;
 
     private static final OkHttpClient baseClient =
             new OkHttpClient.Builder().
@@ -265,7 +266,7 @@ public final class OkHttpWebSocketBrokerClient
     @Override
     public void close() {
         try {
-            webSocket.close(1000, null);
+            webSocket.close(NORMAL_CLOSE_CODE, null);
         } catch (Exception e) {
         }
     }
@@ -422,9 +423,13 @@ public final class OkHttpWebSocketBrokerClient
                 inFlightMessage.scheduledFuture.cancel(true);
             }
             if (inFlightMessage.completableFuture != null) {
-                inFlightMessage.completableFuture.completeExceptionally(
-                        new IOException(String.format(
-                                "Connection is closed (code=%d, reason=%s)", code, reason)));
+                if (code == NORMAL_CLOSE_CODE) {
+                    inFlightMessage.completableFuture.complete(null);
+                } else {
+                    inFlightMessage.completableFuture.completeExceptionally(
+                            new IOException(String.format(
+                                    "Connection is closed (code=%d, reason=%s)", code, reason)));
+                }
             }
         }
     }
