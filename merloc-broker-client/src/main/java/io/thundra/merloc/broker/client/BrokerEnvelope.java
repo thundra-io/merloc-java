@@ -1,9 +1,11 @@
 package io.thundra.merloc.broker.client;
 
+import java.util.Objects;
+
 /**
  * @author serkan
  */
-public class BrokerMessage {
+public class BrokerEnvelope {
 
     private String id;
     private String responseOf;
@@ -13,8 +15,10 @@ public class BrokerMessage {
     private String targetConnectionId;
     private String targetConnectionType;
     private String type;
-    private Data data;
-    private Error error;
+    private String payload;
+    private boolean fragmented;
+    private int fragmentNo = -1;
+    private int fragmentCount = -1;
 
     public String getId() {
         return id;
@@ -24,7 +28,7 @@ public class BrokerMessage {
         this.id = id;
     }
 
-    public BrokerMessage withId(String id) {
+    public BrokerEnvelope withId(String id) {
         this.id = id;
         return this;
     }
@@ -37,8 +41,21 @@ public class BrokerMessage {
         this.responseOf = responseOf;
     }
 
-    public BrokerMessage withResponseOf(String responseOf) {
+    public BrokerEnvelope withResponseOf(String responseOf) {
         this.responseOf = responseOf;
+        return this;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public void setPayload(String payload) {
+        this.payload = payload;
+    }
+
+    public BrokerEnvelope withPayload(String payload) {
+        this.payload = payload;
         return this;
     }
 
@@ -50,7 +67,7 @@ public class BrokerMessage {
         this.connectionName = connectionName;
     }
 
-    public BrokerMessage withConnectionName(String connectionName) {
+    public BrokerEnvelope withConnectionName(String connectionName) {
         this.connectionName = connectionName;
         return this;
     }
@@ -63,7 +80,7 @@ public class BrokerMessage {
         this.sourceConnectionId = sourceConnectionId;
     }
 
-    public BrokerMessage withSourceConnectionId(String sourceConnectionId) {
+    public BrokerEnvelope withSourceConnectionId(String sourceConnectionId) {
         this.sourceConnectionId = sourceConnectionId;
         return this;
     }
@@ -76,7 +93,7 @@ public class BrokerMessage {
         this.sourceConnectionType = sourceConnectionType;
     }
 
-    public BrokerMessage withSourceConnectionType(String sourceConnectionType) {
+    public BrokerEnvelope withSourceConnectionType(String sourceConnectionType) {
         this.sourceConnectionType = sourceConnectionType;
         return this;
     }
@@ -89,7 +106,7 @@ public class BrokerMessage {
         this.targetConnectionId = targetConnectionId;
     }
 
-    public BrokerMessage withTargetConnectionId(String targetConnectionId) {
+    public BrokerEnvelope withTargetConnectionId(String targetConnectionId) {
         this.targetConnectionId = targetConnectionId;
         return this;
     }
@@ -102,7 +119,7 @@ public class BrokerMessage {
         this.targetConnectionType = targetConnectionType;
     }
 
-    public BrokerMessage withTargetConnectionType(String targetConnectionType) {
+    public BrokerEnvelope withTargetConnectionType(String targetConnectionType) {
         this.targetConnectionType = targetConnectionType;
         return this;
     }
@@ -115,71 +132,71 @@ public class BrokerMessage {
         this.type = type;
     }
 
-    public BrokerMessage withType(String type) {
+    public BrokerEnvelope withType(String type) {
         this.type = type;
         return this;
     }
 
-    public Data getData() {
-        return data;
+    public boolean isFragmented() {
+        return fragmented;
     }
 
-    public void setData(Data data) {
-        this.data = data;
+    public void setFragmented(boolean fragmented) {
+        this.fragmented = fragmented;
     }
 
-    public BrokerMessage withData(Data data) {
-        this.data = data;
+    public BrokerEnvelope withFragmented(boolean fragmented) {
+        this.fragmented = fragmented;
         return this;
     }
 
-    public BrokerMessage withDataAttribute(String name, Object value) {
-        if (data == null) {
-            data = new Data();
-        }
-        data.put(name, value);
+    public int getFragmentNo() {
+        return fragmentNo;
+    }
+
+    public void setFragmentNo(int fragmentNo) {
+        this.fragmentNo = fragmentNo;
+    }
+
+    public BrokerEnvelope withFragmentNo(int fragmentNo) {
+        this.fragmentNo = fragmentNo;
         return this;
     }
 
-    public <T> T getDataAttribute(String name) {
-        if (data == null) {
-            return null;
-        }
-        return (T) data.get(name);
+    public int getFragmentCount() {
+        return fragmentCount;
     }
 
-    public <T> T getDataAttribute(String name, T defaultValue) {
-        if (data == null) {
-            return defaultValue;
-        }
-        return (T) data.getOrDefault(name, defaultValue);
+    public void setFragmentCount(int fragmentCount) {
+        this.fragmentCount = fragmentCount;
     }
 
-    public Error getError() {
-        return error;
-    }
-
-    public void setError(Error error) {
-        this.error = error;
-    }
-
-    public BrokerMessage withError(Error error) {
-        this.error = error;
+    public BrokerEnvelope withFragmentCount(int fragmentCount) {
+        this.fragmentCount = fragmentCount;
         return this;
     }
 
     @Override
     public String toString() {
-        return "BrokerMessage{" +
-                "connectionName='" + connectionName + '\'' +
+        return "BrokerEnvelope{" +
+                "id='" + id + '\'' +
+                ", responseOf='" + responseOf + '\'' +
+                ", connectionName='" + connectionName + '\'' +
                 ", sourceConnectionId='" + sourceConnectionId + '\'' +
                 ", sourceConnectionType='" + sourceConnectionType + '\'' +
                 ", targetConnectionId='" + targetConnectionId + '\'' +
                 ", targetConnectionType='" + targetConnectionType + '\'' +
                 ", type='" + type + '\'' +
-                ", data=" + data +
-                ", error=" + error +
+                ", payload='" + payload + '\'' +
+                ", fragmented=" + fragmented +
+                ", fragmentNo=" + fragmentNo +
+                ", fragmentCount=" + fragmentCount +
                 '}';
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, fragmentNo);
     }
 
 }

@@ -5,6 +5,7 @@ import io.thundra.merloc.aws.lambda.runtime.embedded.exception.HandlerExecutionE
 import io.thundra.merloc.broker.client.BrokerConstants;
 import io.thundra.merloc.broker.client.BrokerCredentials;
 import io.thundra.merloc.broker.client.BrokerMessageCallback;
+import io.thundra.merloc.broker.client.Error;
 import io.thundra.merloc.aws.lambda.runtime.embedded.InvocationExecutor;
 import io.thundra.merloc.aws.lambda.runtime.embedded.handler.InvocationHandler;
 import io.thundra.merloc.broker.client.BrokerClient;
@@ -30,10 +31,6 @@ public class WebSocketInvocationHandler implements InvocationHandler {
             "merloc.broker.host";
     private static final String BROKER_CONNECTION_NAME_CONFIG_NAME =
             "merloc.broker.connection.name";
-    private static final String BROKER_CONNECTION_NAME_CLIENT_PREFIX =
-            "client::";
-    private static final String DEFAULT_CLIENT_BROKER_CONNECTION_NAME =
-            "default";
     private static final int BROKER_NORMAL_CLOSE_CODE = 1000;
     private static final String BROKER_NORMAL_CLOSE_REASON = "Bye";
 
@@ -65,7 +62,9 @@ public class WebSocketInvocationHandler implements InvocationHandler {
     }
 
     private static String getBrokerConnectionName() {
-        return ConfigManager.getConfig(BROKER_CONNECTION_NAME_CONFIG_NAME, DEFAULT_CLIENT_BROKER_CONNECTION_NAME);
+        return ConfigManager.getConfig(
+                BROKER_CONNECTION_NAME_CONFIG_NAME,
+                BrokerConstants.DEFAULT_CLIENT_BROKER_CONNECTION_NAME);
     }
 
     @Override
@@ -83,7 +82,7 @@ public class WebSocketInvocationHandler implements InvocationHandler {
 
         BrokerCredentials credentials =
                 new BrokerCredentials().
-                        withConnectionName(BROKER_CONNECTION_NAME_CLIENT_PREFIX + connectionName);
+                        withConnectionName(BrokerConstants.CLIENT_CONNECTION_NAME_PREFIX + connectionName);
 
         CompletableFuture connectedFuture = new CompletableFuture();
         connectedFuture.whenComplete((val, error) -> {
@@ -176,8 +175,8 @@ public class WebSocketInvocationHandler implements InvocationHandler {
                 errorCode = ((ErrorCoded) err).code();
             }
 
-            BrokerMessage.Error error =
-                    new BrokerMessage.Error().
+            Error error =
+                    new Error().
                             withType(err.getClass().getName()).
                             withMessage(err.getMessage()).
                             withStackTrace(extractStackTrace(err));
@@ -281,6 +280,16 @@ public class WebSocketInvocationHandler implements InvocationHandler {
                     brokerRequestMessage.getConnectionName()));
         }
 
+        private void handleBrokerErrorMessage(BrokerClient brokerClient,
+                                              BrokerMessage brokerRequestMessage,
+                                              BrokerMessage brokerResponseMessage) {
+            StdLogger.error(String.format(
+                    "Broker sent error message to your client connection (name=%s): type=%s, message=%s",
+                    brokerRequestMessage.getConnectionName(),
+                    (brokerRequestMessage.getError() != null ? brokerRequestMessage.getError().getType() : ""),
+                    (brokerRequestMessage.getError() != null ? brokerRequestMessage.getError().getMessage() : "")));
+        }
+
         private void handleMessage(BrokerClient brokerClient, BrokerMessage brokerRequestMessage) {
             try {
                 BrokerMessage brokerResponseMessage =
@@ -303,6 +312,10 @@ public class WebSocketInvocationHandler implements InvocationHandler {
                     } else if (BrokerConstants.CLIENT_CONNECTION_OVERRIDE_MESSAGE_TYPE.
                             equalsIgnoreCase(brokerRequestMessage.getType())) {
                         handleClientConnectionOverrideMessage(
+                                brokerClient, brokerRequestMessage, brokerResponseMessage);
+                    } else if (BrokerConstants.BROKER_ERROR_MESSAGE_TYPE.
+                            equalsIgnoreCase(brokerRequestMessage.getType())) {
+                        handleBrokerErrorMessage(
                                 brokerClient, brokerRequestMessage, brokerResponseMessage);
                     } else {
                         throw new UnsupportedOperationException(

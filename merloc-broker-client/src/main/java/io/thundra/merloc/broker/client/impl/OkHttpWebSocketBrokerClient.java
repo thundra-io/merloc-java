@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.thundra.merloc.broker.client.BrokerCredentials;
+import io.thundra.merloc.broker.client.BrokerEnvelope;
 import io.thundra.merloc.broker.client.BrokerMessage;
 import io.thundra.merloc.broker.client.BrokerMessageCallback;
 import io.thundra.merloc.broker.client.BrokerClient;
+import io.thundra.merloc.broker.client.BrokerPayload;
 import io.thundra.merloc.common.logger.StdLogger;
 import io.thundra.merloc.common.utils.ExceptionUtils;
 import io.thundra.merloc.common.utils.ExecutorUtils;
@@ -20,10 +22,15 @@ import okhttp3.WebSocketListener;
 import okio.ByteString;
 
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -38,6 +45,7 @@ public final class OkHttpWebSocketBrokerClient
         implements BrokerClient {
 
     private static final String API_KEY_HEADER_NAME = "x-api-key";
+    private static final int MAX_FRAME_SIZE = (16 * 1024);
 
     private static final OkHttpClient baseClient =
             new OkHttpClient.Builder().
@@ -54,7 +62,10 @@ public final class OkHttpWebSocketBrokerClient
                     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private final ScheduledExecutorService inFlightMessageCleanerExecutorService =
             ExecutorUtils.newScheduledExecutorService(1, "broker-client-inflight-cleaner");
+    private final ScheduledExecutorService idleEnvelopeCleanerExecutorService =
+            ExecutorUtils.newScheduledExecutorService(1, "broker-client-envelope-cleaner");
     private final Map<String, InFlightMessage> messageMap = new ConcurrentHashMap<>();
+    private final EnvelopeGlue envelopeGlue = new EnvelopeGlue();
     private final OkHttpClient client;
     private final WebSocket webSocket;
     private final BrokerMessageCallback messageCallback;
@@ -85,6 +96,8 @@ public final class OkHttpWebSocketBrokerClient
         Request request = buildRequest(host, brokerCredentials, headers);
         this.client = baseClient.newBuilder().build();
         this.webSocket = client.newWebSocket(request, this);
+        idleEnvelopeCleanerExecutorService.scheduleAtFixedRate(
+                () -> envelopeGlue.cleanIdleEnvelopes(), 1, 1, TimeUnit.MINUTES);
     }
 
     private static Request buildRequest(String host,
@@ -141,15 +154,64 @@ public final class OkHttpWebSocketBrokerClient
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    private void doSend(BrokerMessage message, String payloadStr) throws IOException {
+        int payloadLength = payloadStr.length();
+        if (payloadLength < MAX_FRAME_SIZE) {
+            BrokerEnvelope envelope =
+                    new BrokerEnvelope().
+                            withId(message.getId()).
+                            withResponseOf(message.getResponseOf()).
+                            withConnectionName(message.getConnectionName()).
+                            withSourceConnectionId(message.getSourceConnectionId()).
+                            withSourceConnectionType(message.getSourceConnectionType()).
+                            withTargetConnectionId(message.getTargetConnectionId()).
+                            withTargetConnectionType(message.getTargetConnectionType()).
+                            withType(message.getType()).
+                            withPayload(payloadStr);
+            String envelopeStr = objectMapper.writeValueAsString(envelope);
+            if (!webSocket.send(envelopeStr)) {
+                throw new IOException("Unable to send message");
+            }
+        } else {
+            int fragmentCount = (payloadLength / MAX_FRAME_SIZE) + (payloadLength % MAX_FRAME_SIZE == 0 ? 0 : 1);
+            for (int i = 0; i < fragmentCount; i++) {
+                String fragmentedPayload =
+                        payloadStr.substring(
+                                i * MAX_FRAME_SIZE,
+                                Math.min((i + 1) * MAX_FRAME_SIZE, payloadLength));
+                BrokerEnvelope envelope =
+                        new BrokerEnvelope().
+                                withId(message.getId()).
+                                withResponseOf(message.getResponseOf()).
+                                withConnectionName(message.getConnectionName()).
+                                withSourceConnectionId(message.getSourceConnectionId()).
+                                withSourceConnectionType(message.getSourceConnectionType()).
+                                withTargetConnectionId(message.getTargetConnectionId()).
+                                withTargetConnectionType(message.getTargetConnectionType()).
+                                withType(message.getType()).
+                                withPayload(fragmentedPayload).
+                                withFragmented(true).
+                                withFragmentNo(i).
+                                withFragmentCount(fragmentCount);
+                String envelopeStr = objectMapper.writeValueAsString(envelope);
+                if (!webSocket.send(envelopeStr)) {
+                    throw new IOException("Unable to send message");
+                }
+            }
+        }
+    }
+
     @Override
     public void send(BrokerMessage message) throws IOException {
         if (StringUtils.isNullOrEmpty(message.getId())) {
             message.setId(UUID.randomUUID().toString());
         }
-        String messageStr = objectMapper.writeValueAsString(message);
-        if (!webSocket.send(messageStr)) {
-            throw new IOException("Unable to send message");
-        }
+        BrokerPayload payload =
+                new BrokerPayload().
+                        withData(message.getData()).
+                        withError(message.getError());
+        String payloadStr = objectMapper.writeValueAsString(payload);
+        doSend(message, payloadStr);
     }
 
     @Override
@@ -214,6 +276,8 @@ public final class OkHttpWebSocketBrokerClient
             webSocket.cancel();
         } catch (Exception e) {
         }
+        inFlightMessageCleanerExecutorService.shutdownNow();
+        idleEnvelopeCleanerExecutorService.shutdownNow();
     }
 
     @Override
@@ -252,7 +316,7 @@ public final class OkHttpWebSocketBrokerClient
         if (StdLogger.DEBUG_ENABLED) {
             StdLogger.debug("MESSAGE: " + text);
         }
-        handleOnMessage(text);
+        receiveMessage(text);
     }
 
     @Override
@@ -261,12 +325,46 @@ public final class OkHttpWebSocketBrokerClient
         if (StdLogger.DEBUG_ENABLED) {
             StdLogger.debug("MESSAGE: " + text);
         }
-        handleOnMessage(text);
+        receiveMessage(text);
     }
 
-    private void handleOnMessage(String text) {
+    private void receiveMessage(String text) {
         try {
-            BrokerMessage message = objectMapper.readValue(text, BrokerMessage.class);
+            BrokerEnvelope envelope = objectMapper.readValue(text, BrokerEnvelope.class);
+            String payloadStr = envelope.getPayload();
+            if (StringUtils.isNullOrEmpty(payloadStr)) {
+                StdLogger.error("Empty payload in envelope");
+                return;
+            }
+            if (envelope.isFragmented()) {
+                envelopeGlue.glue(envelope);
+            } else {
+                BrokerPayload payload = objectMapper.readValue(payloadStr, BrokerPayload.class);
+                if (payload == null) {
+                    StdLogger.error("Empty payload in envelope");
+                    return;
+                }
+                BrokerMessage message =
+                        new BrokerMessage().
+                                withId(envelope.getId()).
+                                withResponseOf(envelope.getResponseOf()).
+                                withConnectionName(envelope.getConnectionName()).
+                                withSourceConnectionId(envelope.getSourceConnectionId()).
+                                withSourceConnectionType(envelope.getSourceConnectionType()).
+                                withTargetConnectionId(envelope.getTargetConnectionId()).
+                                withTargetConnectionType(envelope.getTargetConnectionType()).
+                                withType(envelope.getType()).
+                                withData(payload.getData()).
+                                withError(payload.getError());
+                handleMessage(message);
+            }
+        } catch (Throwable error) {
+            StdLogger.error(String.format("Unable to deserialize broker message: %s", text, error));
+        }
+    }
+
+    private void handleMessage(BrokerMessage message) {
+        try {
             if (StringUtils.hasValue(message.getResponseOf())) {
                 InFlightMessage inFlightMessage = messageMap.remove(message.getResponseOf());
                 if (inFlightMessage != null) {
@@ -282,7 +380,7 @@ public final class OkHttpWebSocketBrokerClient
                 messageCallback.onMessage(this, message);
             }
         } catch (Throwable error) {
-            StdLogger.error(String.format("Unable to deserialize broker message: %s", text, error));
+            StdLogger.error(String.format("Unable to handle broker message: %s", message, error));
         }
     }
 
@@ -296,6 +394,7 @@ public final class OkHttpWebSocketBrokerClient
     public void onClosed(WebSocket webSocket, int code, String reason) {
         StdLogger.debug("CLOSED: " + code + " " + reason);
         closedFuture.complete(true);
+        destroyInFlightMessages(code, reason);
     }
 
     @Override
@@ -311,6 +410,23 @@ public final class OkHttpWebSocketBrokerClient
             connectedFuture.completeExceptionally(t);
         }
         closedFuture.completeExceptionally(t);
+        destroyInFlightMessages(-1, t.getMessage());
+    }
+
+    private void destroyInFlightMessages(int code, String reason) {
+        Iterator<InFlightMessage> iter = messageMap.values().iterator();
+        while (iter.hasNext()) {
+            InFlightMessage inFlightMessage = iter.next();
+            iter.remove();
+            if (inFlightMessage.scheduledFuture != null) {
+                inFlightMessage.scheduledFuture.cancel(true);
+            }
+            if (inFlightMessage.completableFuture != null) {
+                inFlightMessage.completableFuture.completeExceptionally(
+                        new IOException(String.format(
+                                "Connection is closed (code=%d, reason=%s)", code, reason)));
+            }
+        }
     }
 
     private class InFlightMessage {
@@ -318,10 +434,106 @@ public final class OkHttpWebSocketBrokerClient
         private final CompletableFuture completableFuture;
         private final ScheduledFuture scheduledFuture;
 
-        private InFlightMessage(CompletableFuture completableFuture,
-                                ScheduledFuture scheduledFuture) {
+        private InFlightMessage(CompletableFuture completableFuture, ScheduledFuture scheduledFuture) {
             this.completableFuture = completableFuture;
             this.scheduledFuture = scheduledFuture;
+        }
+
+    }
+
+    private static class BrokerEnvelopeKey {
+
+        private final String id;
+        private final long initTime;
+
+        private BrokerEnvelopeKey(String id, long initTime) {
+            this.id = id;
+            this.initTime = initTime;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            BrokerEnvelopeKey that = (BrokerEnvelopeKey) o;
+            return Objects.equals(id, that.id);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id);
+        }
+
+    }
+
+    private class EnvelopeGlue {
+
+        private final long ENVELOPE_IDLE_TIMEOUT = TimeUnit.MINUTES.toMillis(1);
+
+        private final Map<BrokerEnvelopeKey, Set<BrokerEnvelope>> envelopeMap = new ConcurrentHashMap<>();
+
+        private void glueSiblingEnvelopesAndHandleMessage(Set<BrokerEnvelope> siblingEnvelopes) {
+            BrokerEnvelope firstEnvelope = siblingEnvelopes.iterator().next();
+            StringBuilder payloadBuilder = new StringBuilder();
+            for (BrokerEnvelope envelope : siblingEnvelopes) {
+                payloadBuilder.append(envelope.getPayload());
+            }
+            String payloadStr = payloadBuilder.toString();
+            try {
+                BrokerPayload payload = objectMapper.readValue(payloadStr, BrokerPayload.class);
+                BrokerMessage message =
+                        new BrokerMessage().
+                                withId(firstEnvelope.getId()).
+                                withResponseOf(firstEnvelope.getResponseOf()).
+                                withConnectionName(firstEnvelope.getConnectionName()).
+                                withSourceConnectionId(firstEnvelope.getSourceConnectionId()).
+                                withSourceConnectionType(firstEnvelope.getSourceConnectionType()).
+                                withTargetConnectionId(firstEnvelope.getTargetConnectionId()).
+                                withTargetConnectionType(firstEnvelope.getTargetConnectionType()).
+                                withType(firstEnvelope.getType()).
+                                withData(payload.getData()).
+                                withError(payload.getError());
+                handleMessage(message);
+            } catch (Throwable t) {
+                StdLogger.error(String.format(
+                        "Unable to deserialize broker message from glued data: %s", payloadStr),
+                        t);
+            }
+        }
+
+        private void glue(BrokerEnvelope envelope) {
+            String id = envelope.getId();
+            int fragmentCount = envelope.getFragmentCount();
+            BrokerEnvelopeKey key = new BrokerEnvelopeKey(id, System.currentTimeMillis());
+            Set<BrokerEnvelope> siblingEnvelopes = envelopeMap.get(key);
+            if (siblingEnvelopes == null) {
+                siblingEnvelopes = new ConcurrentSkipListSet<>(Comparator.comparingInt(BrokerEnvelope::getFragmentNo));
+                Set<BrokerEnvelope> existingSiblingEnvelopes = envelopeMap.putIfAbsent(key, siblingEnvelopes);
+                if (existingSiblingEnvelopes != null) {
+                    siblingEnvelopes = existingSiblingEnvelopes;
+                }
+            }
+            siblingEnvelopes.add(envelope);
+            // Check whether we collect all the fragments
+            if (siblingEnvelopes.size() == fragmentCount) {
+                envelopeMap.remove(key);
+                // If so, glue all the fragments to build original message
+                glueSiblingEnvelopesAndHandleMessage(siblingEnvelopes);
+            }
+        }
+
+        private void cleanIdleEnvelopes() {
+            long currentTime = System.currentTimeMillis();
+            Iterator<BrokerEnvelopeKey> iter = envelopeMap.keySet().iterator();
+            while (iter.hasNext()) {
+                BrokerEnvelopeKey key = iter.next();
+                // Check whether if there is an idle envelope.
+                // Normally this is not an expected case,
+                // but it can happen if some fragments were not able to transmitted or processed somehow.
+                if (currentTime - key.initTime > ENVELOPE_IDLE_TIMEOUT) {
+                    iter.remove();
+                }
+            }
         }
 
     }

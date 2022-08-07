@@ -10,6 +10,10 @@ import io.thundra.merloc.broker.client.BrokerClientFactory;
 import io.thundra.merloc.broker.client.BrokerConstants;
 import io.thundra.merloc.broker.client.BrokerCredentials;
 import io.thundra.merloc.broker.client.BrokerMessage;
+import io.thundra.merloc.broker.client.BrokerMessageCallback;
+import io.thundra.merloc.broker.client.Data;
+import io.thundra.merloc.broker.client.Error;
+import io.thundra.merloc.broker.client.TypeAwareBrokerMessageCallback;
 import io.thundra.merloc.common.config.ConfigManager;
 import io.thundra.merloc.aws.lambda.core.handler.HandlerHelper;
 import io.thundra.merloc.aws.lambda.core.handler.WrapperLambdaHandler;
@@ -27,6 +31,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -84,7 +89,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
         return CompletableFuture.supplyAsync(handlerSupplier);
     }
 
-    private static BrokerClient createBrokerClient() {
+    private static BrokerClient createBrokerClient(BrokerMessageCallback brokerMessageCallback) {
         StdLogger.debug(String.format(
                 "Creating broker client to %s with connection name %s",
                 BROKER_HOST,
@@ -93,8 +98,9 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
             return BrokerClientFactory.createWebSocketClient(
                     BROKER_HOST,
                     new BrokerCredentials().
-                            withConnectionName(BROKER_CONNECTION_NAME),
-                    null, null, null);
+                            withConnectionName(
+                                    BrokerConstants.GATEKEEPER_CONNECTION_NAME_PREFIX + BROKER_CONNECTION_NAME),
+                    brokerMessageCallback, null, null);
         } catch (Exception e) {
             StdLogger.error("Unable to create broker client", e);
             return null;
@@ -102,7 +108,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
     }
 
     private BrokerMessage createClientRequest(Context context, String requestData) throws IOException {
-        BrokerMessage.Data data = new BrokerMessage.Data();
+        Data data = new Data();
 
         data.put(AWS_LAMBDA_REGION_ATTRIBUTE_NAME, LambdaUtils.getEnvVar(AWS_REGION_ENV_VAR_NAME));
         data.put(AWS_LAMBDA_REQUEST_ID_ATTRIBUTE_NAME, context.getAwsRequestId());
@@ -170,7 +176,16 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                 }
             }
 
-            BrokerClient brokerClient = createBrokerClient();
+            BrokerClient brokerClient =
+                    createBrokerClient(
+                            new TypeAwareBrokerMessageCallback(
+                                    Arrays.asList(BrokerConstants.CLIENT_DISCONNECT_MESSAGE_TYPE),
+                                    (client, message) -> {
+                                        StdLogger.debug(
+                                                "Client disconnected, so closing broker client." +
+                                                "Then request will be forwarded to the actual handler.");
+                                        client.close();
+                                    }));
             if (brokerClient == null) {
                 StdLogger.debug("Broker client could not be created so forwarding request to the actual handler");
                 return true;
@@ -202,7 +217,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                     StdLogger.debug(String.format("Couldn't get response to client request"));
                     return true;
                 }
-                BrokerMessage.Error error = clientResponse.getError();
+                Error error = clientResponse.getError();
                 if (error != null) {
                     if (BrokerConstants.BROKER_CONNECTION_TYPE.equals(clientResponse.getSourceConnectionType())) {
                         // Response is coming from broker, not client.
@@ -267,7 +282,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
         }
     }
 
-    private Throwable createClientRequestError(BrokerMessage.Error error) {
+    private Throwable createClientRequestError(Error error) {
         String errorType = error.getType();
         String errorMessage = error.getMessage();
         if (StringUtils.hasValue(errorType)) {
