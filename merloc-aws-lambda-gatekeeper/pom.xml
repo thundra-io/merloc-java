@@ -82,6 +82,9 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
+                                        <exclude>META-INF/maven/**</exclude>
+                                        <exclude>META-INF/proguard/**</exclude>
+                                        <exclude>META-INF/*.kotlin_module</exclude>
                                         <exclude>Main.class</exclude>
                                         <exclude>dummyStackTrace.txt</exclude>
                                     </excludes>
