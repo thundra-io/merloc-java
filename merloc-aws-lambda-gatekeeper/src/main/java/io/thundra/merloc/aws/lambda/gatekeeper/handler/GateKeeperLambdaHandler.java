@@ -294,8 +294,8 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                     try {
                         return ctor.newInstance(errorMessage);
                     } catch (Exception e) {
-                        StdLogger.error(String.format(
-                                "Unable to create client request error: %s", errorType), e);
+                        StdLogger.debug(String.format(
+                                "Unable to create client request error (%s): %s", errorType, error.getMessage()));
                     }
                 } else {
                     ctor = getConstructorSafe(errorClass, String.class, Throwable.class);
@@ -303,13 +303,25 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                         try {
                             return ctor.newInstance(errorMessage, null);
                         } catch (Exception e) {
-                            StdLogger.error(String.format(
-                                    "Unable to create client request error: %s", errorType), e);
+                            StdLogger.debug(String.format(
+                                    "Unable to create client request error (%s): %s", errorType, error.getMessage()));
+                        }
+                    } else {
+                        ctor = getConstructorSafe(errorClass);
+                        if (ctor != null) {
+                            try {
+                                return ctor.newInstance(errorMessage, null);
+                            } catch (Exception e) {
+                                StdLogger.debug(String.format(
+                                        "Unable to create client request error (%s): %s", errorType, error.getMessage()));
+                            }
                         }
                     }
                 }
             }
         }
+        StdLogger.debug(String.format(
+                "Unable to create client request error (%s). So wrapping with 'RuntimeException'", errorType));
         return new RuntimeException(errorMessage);
     }
 
