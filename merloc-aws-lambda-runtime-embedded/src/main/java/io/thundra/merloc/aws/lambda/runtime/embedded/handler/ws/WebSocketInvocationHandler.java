@@ -177,9 +177,9 @@ public class WebSocketInvocationHandler implements InvocationHandler {
 
             Error error =
                     new Error().
-                            withType(err.getClass().getName()).
-                            withMessage(err.getMessage()).
-                            withStackTrace(extractStackTrace(err));
+                            withType(effectiveError.getClass().getName()).
+                            withMessage(effectiveError.getMessage()).
+                            withStackTrace(extractStackTrace(effectiveError));
 
             if (errorCode != null) {
                 error = error.withCode(errorCode);
