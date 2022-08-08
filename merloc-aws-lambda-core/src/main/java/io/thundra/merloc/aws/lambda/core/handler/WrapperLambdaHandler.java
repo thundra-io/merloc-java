@@ -119,7 +119,7 @@ public class WrapperLambdaHandler implements RequestStreamHandler {
         try {
             continueRequest = onRequest(wrapperInputStream, responseStream, context);
         } catch (Throwable t) {
-            StdLogger.error("Error occurred while on request", t);
+            StdLogger.debug("Error occurred while on request", t);
             ExceptionUtils.sneakyThrow(t);
         }
 

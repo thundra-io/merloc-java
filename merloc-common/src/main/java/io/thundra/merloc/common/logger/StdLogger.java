@@ -45,6 +45,13 @@ public final class StdLogger {
         }
     }
 
+    public static void debug(String message, Throwable error) {
+        if (DEBUG_ENABLED) {
+            System.out.println(getLogPrefix(DEBUG_LEVEL) + message);
+            System.err.println(ExceptionUtils.toString(error));
+        }
+    }
+
     public static void info(String message) {
         System.out.println(getLogPrefix(INFO_LEVEL) + message);
     }

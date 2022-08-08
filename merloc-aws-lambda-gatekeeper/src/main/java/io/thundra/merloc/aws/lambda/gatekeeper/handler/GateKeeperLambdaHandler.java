@@ -1,5 +1,6 @@
 package io.thundra.merloc.aws.lambda.gatekeeper.handler;
 
+import ch.scheitlin.alex.java.StackTraceParser;
 import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -32,6 +33,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -263,9 +265,9 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                 }
             }
         } catch (Throwable t) {
-            StdLogger.error("Client failed to handle request", t);
+            StdLogger.debug("Client failed to handle request", t);
             if (throwError) {
-                StdLogger.error(String.format(
+                StdLogger.debug(String.format(
                         "Throwing client error (type=%s, message=%s)", t.getClass().getName(), t.getMessage()),
                         t);
                 ExceptionUtils.sneakyThrow(t);
@@ -285,32 +287,55 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
     private Throwable createClientRequestError(Error error) {
         String errorType = error.getType();
         String errorMessage = error.getMessage();
+        Throwable clientError = null;
         if (StringUtils.hasValue(errorType)) {
             Class<? extends Throwable> errorClass =
                     ClassUtils.getClass(getClass().getClassLoader(), errorType);
             if (errorClass != null) {
-                Constructor<? extends Throwable> ctor = getConstructorSafe(errorClass, String.class);
-                if (ctor != null) {
-                    try {
-                        return ctor.newInstance(errorMessage);
-                    } catch (Exception e) {
-                        StdLogger.debug(String.format(
-                                "Unable to create client request error (%s): %s", errorType, error.getMessage()));
-                    }
-                } else {
-                    ctor = getConstructorSafe(errorClass, String.class, Throwable.class);
+                if (StringUtils.hasValue(errorMessage)) {
+                    Constructor<? extends Throwable> ctor = getConstructorSafe(errorClass, String.class);
                     if (ctor != null) {
                         try {
-                            return ctor.newInstance(errorMessage, null);
+                            clientError = ctor.newInstance(errorMessage);
                         } catch (Exception e) {
                             StdLogger.debug(String.format(
                                     "Unable to create client request error (%s): %s", errorType, error.getMessage()));
                         }
                     } else {
-                        ctor = getConstructorSafe(errorClass);
+                        ctor = getConstructorSafe(errorClass, String.class, Throwable.class);
                         if (ctor != null) {
                             try {
-                                return ctor.newInstance(errorMessage, null);
+                                clientError = ctor.newInstance(errorMessage, null);
+                            } catch (Exception e) {
+                                StdLogger.debug(String.format(
+                                        "Unable to create client request error (%s): %s", errorType, error.getMessage()));
+                            }
+                        } else {
+                            ctor = getConstructorSafe(errorClass);
+                            if (ctor != null) {
+                                try {
+                                    clientError = ctor.newInstance();
+                                } catch (Exception e) {
+                                    StdLogger.debug(String.format(
+                                            "Unable to create client request error (%s): %s", errorType, error.getMessage()));
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Constructor<? extends Throwable> ctor = getConstructorSafe(errorClass);
+                    if (ctor != null) {
+                        try {
+                            clientError = ctor.newInstance();
+                        } catch (Exception e) {
+                            StdLogger.debug(String.format(
+                                    "Unable to create client request error (%s): %s", errorType, error.getMessage()));
+                        }
+                    } else {
+                        ctor = getConstructorSafe(errorClass, Throwable.class);
+                        if (ctor != null) {
+                            try {
+                                clientError = ctor.newInstance(null);
                             } catch (Exception e) {
                                 StdLogger.debug(String.format(
                                         "Unable to create client request error (%s): %s", errorType, error.getMessage()));
@@ -320,9 +345,41 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                 }
             }
         }
-        StdLogger.debug(String.format(
-                "Unable to create client request error (%s). So wrapping with 'RuntimeException'", errorType));
-        return new RuntimeException(errorMessage);
+
+        if (clientError == null) {
+            StdLogger.debug(String.format(
+                    "Unable to create client request error (%s). So wrapping with 'RuntimeException'", errorType));
+            clientError = new RuntimeException(errorMessage);
+        }
+
+        String[] stackTrace = error.getStackTrace();
+        if (stackTrace != null && stackTrace.length > 0) {
+            StackTraceElement[] stackTraceElements = buildStackTraceElements(stackTrace);
+            if (stackTraceElements != null) {
+                clientError.setStackTrace(stackTraceElements);
+            }
+        }
+
+        return clientError;
+    }
+
+    private static StackTraceElement[] buildStackTraceElements(String[] stackTrace) {
+        try {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < stackTrace.length; i++) {
+                if (i > 0) {
+                    builder.append("\n");
+                }
+                builder.append("\tat ").append(stackTrace[i]);
+            }
+            String stackTraceStr = builder.toString();
+            List<StackTraceElement> stackTraceElementList =
+                    StackTraceParser.parse(stackTraceStr).getStackTraceLines();
+            return stackTraceElementList.toArray(new StackTraceElement[stackTraceElementList.size()]);
+        } catch (Exception e) {
+            StdLogger.debug(String.format("Unable to parse stacktrace: %s", Arrays.toString(stackTrace)));
+            return null;
+        }
     }
 
 }

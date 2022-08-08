@@ -42,6 +42,7 @@
         <aws.lambda.java.version>1.2.1</aws.lambda.java.version>
         <aws.lambda.java.serialization.version>1.0.0</aws.lambda.java.serialization.version>
         <okhttp.version>4.10.0</okhttp.version>
+        <java.stacktrace.parser.version>v1.0.1</java.stacktrace.parser.version>
 
         <mockito.version>3.8.0</mockito.version>
         <powermock.version>2.0.9</powermock.version>
@@ -113,6 +114,11 @@
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp</artifactId>
                 <version>${okhttp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.alexscheitlin</groupId>
+                <artifactId>java-stack-trace-parser</artifactId>
+                <version>${java.stacktrace.parser.version}</version>
             </dependency>
             <!-- ========================================== -->
 
@@ -301,5 +307,12 @@
             <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 
 </project>

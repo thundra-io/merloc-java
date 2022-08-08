@@ -22,6 +22,10 @@
             <groupId>io.thundra.merloc</groupId>
             <artifactId>merloc-broker-client</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.github.alexscheitlin</groupId>
+            <artifactId>java-stack-trace-parser</artifactId>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -69,7 +73,20 @@
                                     <pattern>org.jetbrains</pattern>
                                     <shadedPattern>io.thundra.merloc.thirdparty.org.jetbrains</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>ch.scheitlin.alex</pattern>
+                                    <shadedPattern>io.thundra.merloc.thirdparty.ch.scheitlin.alex</shadedPattern>
+                                </relocation>
                             </relocations>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>Main.class</exclude>
+                                        <exclude>dummyStackTrace.txt</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </plugin>
                 </plugins>
