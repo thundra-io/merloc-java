@@ -360,7 +360,7 @@ public final class OkHttpWebSocketBrokerClient
                 handleMessage(message);
             }
         } catch (Throwable error) {
-            StdLogger.error(String.format("Unable to deserialize broker message: %s", text, error));
+            StdLogger.error(String.format("Unable to deserialize broker message: %s", text), error);
         }
     }
 
@@ -381,7 +381,7 @@ public final class OkHttpWebSocketBrokerClient
                 messageCallback.onMessage(this, message);
             }
         } catch (Throwable error) {
-            StdLogger.error(String.format("Unable to handle broker message: %s", message, error));
+            StdLogger.error(String.format("Unable to handle broker message: %s", message), error);
         }
     }
 
