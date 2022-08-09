@@ -8,6 +8,7 @@ import io.thundra.merloc.common.config.ConfigManager;
 import io.thundra.merloc.common.logger.StdLogger;
 import io.thundra.merloc.common.utils.IOUtils;
 import io.thundra.merloc.common.utils.ReflectionUtils;
+import io.thundra.merloc.common.utils.UnsafeUtils;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -35,6 +36,10 @@ public class LambdaRuntime {
     private static InvocationExecutor invocationExecutor;
     private static InvocationHandler invocationHandler;
     private static boolean started = false;
+
+    static {
+        UnsafeUtils.disableIllegalAccessWarning();
+    }
 
     public static void main(String[] args) throws Exception {
         start();

@@ -1,7 +1,8 @@
 package io.thundra.merloc.common.utils;
 
+import sun.misc.Unsafe;
+
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 
 /**
  * Utility class for providing reflection related stuff.
@@ -48,10 +49,8 @@ public final class ReflectionUtils {
         throw new NoSuchFieldException("No such field: " + fieldName);
     }
 
-    public static void setObjectField(Object obj, String fieldName, Object value)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
+    public static void setObjectField(Object obj, String fieldName, Object value) {
+        Unsafe unsafe = UnsafeUtils.unsafe();
 
         Class clazz = obj.getClass();
         while (clazz != Object.class) {
@@ -61,24 +60,16 @@ public final class ReflectionUtils {
             } catch (Throwable t) {
             }
             if (field != null) {
-                int modifiers = field.getModifiers();
-                modifiersField.setInt(field, modifiers & ~Modifier.FINAL);
-                try {
-                    field.setAccessible(true);
-                    field.set(obj, value);
-                } finally {
-                    modifiersField.setInt(field, modifiers);
-                }
+                long fieldOffset = unsafe.objectFieldOffset(field);
+                unsafe.putObject(value, fieldOffset, value);
                 break;
             }
             clazz = clazz.getSuperclass();
         }
     }
 
-    public static void setClassField(Class clazz, String fieldName, Object value)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
+    public static void setClassField(Class clazz, String fieldName, Object value) {
+        Unsafe unsafe = UnsafeUtils.unsafe();
 
         while (clazz != Object.class) {
             Field field = null;
@@ -87,14 +78,9 @@ public final class ReflectionUtils {
             } catch (Throwable t) {
             }
             if (field != null) {
-                int modifiers = field.getModifiers();
-                modifiersField.setInt(field, modifiers & ~Modifier.FINAL);
-                try {
-                    field.setAccessible(true);
-                    field.set(null, value);
-                } finally {
-                    modifiersField.setInt(field, modifiers);
-                }
+                Object fieldBase = unsafe.staticFieldBase(field);
+                long fieldOffset = unsafe.staticFieldOffset(field);
+                unsafe.putObject(fieldBase, fieldOffset, value);
                 break;
             }
             clazz = clazz.getSuperclass();
