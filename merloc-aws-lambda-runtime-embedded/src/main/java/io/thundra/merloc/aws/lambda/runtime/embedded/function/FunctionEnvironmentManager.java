@@ -337,13 +337,12 @@ public class FunctionEnvironmentManager {
 
                 AtomicReference<String> currentRequestId = new AtomicReference<>();
 
-                Map<String, String> envVars = managedEnvVars.mergeWithBaseEnvVars(functionEnvVars);
-                normalizeEnvVars(envVars, classLoader, originalHandlerName);
+                normalizeEnvVars(functionEnvVars, classLoader, originalHandlerName);
 
                 Properties sysProps = new Properties();
 
                 FunctionEnvironmentInfoProxy funcEnvInfoProxy =
-                        createFunctionEnvironmentInfo(classLoader, functionArn, functionName, envVars, sysProps);
+                        createFunctionEnvironmentInfo(classLoader, functionArn, functionName, functionEnvVars, sysProps);
 
                 List<Object> initializers = createInitializers(classLoader, functionName);
 

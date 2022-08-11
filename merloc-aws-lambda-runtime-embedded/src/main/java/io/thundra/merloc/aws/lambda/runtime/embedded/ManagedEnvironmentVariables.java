@@ -14,11 +14,18 @@ import java.util.function.Function;
  */
 public class ManagedEnvironmentVariables extends HashMap<String, String> {
 
-    private final Map<String, String> baseEnvVars;
-    private final Map<ThreadGroup, Map<String, String>> threadGroupEnvVars = new ConcurrentHashMap<>();
+    private final Map<String, String> realEnvVars;
+    private final Map<ThreadGroup, Map<String, String>> threadGroupEnvVars;
 
-    public ManagedEnvironmentVariables(Map<String, String> baseEnvVars) {
-        this.baseEnvVars = baseEnvVars;
+    public ManagedEnvironmentVariables(Map<String, String> realEnvVars) {
+        this.realEnvVars = realEnvVars;
+        this.threadGroupEnvVars = new ConcurrentHashMap<>();
+    }
+
+    public ManagedEnvironmentVariables(Map<String, String> realEnvVars,
+                                       ManagedEnvironmentVariables masterManagedEnvVars) {
+        this.realEnvVars = realEnvVars;
+        this.threadGroupEnvVars = masterManagedEnvVars.threadGroupEnvVars;
     }
 
     private Map<String, String> getDelegate() {
@@ -28,14 +35,7 @@ public class ManagedEnvironmentVariables extends HashMap<String, String> {
                 return delegate;
             }
         }
-        return baseEnvVars;
-    }
-
-    public Map<String, String> mergeWithBaseEnvVars(Map<String, String> envVars) {
-        Map<String, String> allEnvVars = new HashMap<>();
-        allEnvVars.putAll(baseEnvVars);
-        allEnvVars.putAll(envVars);
-        return allEnvVars;
+        return realEnvVars;
     }
 
     public Map<String, String> getThreadGroupAwareEnvVars() {
@@ -49,8 +49,7 @@ public class ManagedEnvironmentVariables extends HashMap<String, String> {
     public void setThreadGroupAwareEnvVars(Map<String, String> envVars) {
         ThreadGroup tg = Thread.currentThread().getThreadGroup();
         if (tg != null) {
-            Map<String, String> allEnvVars = mergeWithBaseEnvVars(envVars);
-            threadGroupEnvVars.put(tg, allEnvVars);
+            threadGroupEnvVars.put(tg, envVars);
         }
     }
 

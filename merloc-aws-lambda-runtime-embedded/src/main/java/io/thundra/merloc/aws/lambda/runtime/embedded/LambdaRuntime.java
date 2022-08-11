@@ -12,7 +12,6 @@ import io.thundra.merloc.common.utils.UnsafeUtils;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -27,6 +26,7 @@ public class LambdaRuntime {
             "merloc.runtime.aws.lambda.runtime.function.concurrency.mode";
 
     private static Map<String, String> originalEnvVars;
+    private static Map<String, String> originalEnvVars2;
     private static Properties originalSysProps;
     private static PrintStream originalStdOutStream;
     private static PrintStream originalStdErrStream;
@@ -66,7 +66,8 @@ public class LambdaRuntime {
 
     private static synchronized void ensureInitialized() {
         if (!initialized) {
-            originalEnvVars = System.getenv();
+            originalEnvVars = getOriginalEnvVars();
+            originalEnvVars2 = getOriginalEnvVars2();
             originalSysProps = System.getProperties();
             originalStdOutStream = System.out;
             originalStdErrStream = System.err;
@@ -104,25 +105,54 @@ public class LambdaRuntime {
         return functionConcurrencyMode;
     }
 
+    private static Map<String, String> getOriginalEnvVars() {
+        try {
+            Class processingEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+            return ReflectionUtils.getClassField(
+                    processingEnvironmentClass, "theUnmodifiableEnvironment");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Map<String, String> getOriginalEnvVars2() {
+        try {
+            Class processingEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+            return ReflectionUtils.getClassField(
+                    processingEnvironmentClass, "theCaseInsensitiveEnvironment");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static ManagedEnvironmentVariables wrapEnvVars() throws Exception {
-        Map<String, String> envVars = new HashMap<>(LambdaRuntime.originalEnvVars);
-
-        ManagedEnvironmentVariables managedEnvVars = new ManagedEnvironmentVariables(envVars);
-
         Class processingEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+
+        ManagedEnvironmentVariables managedEnvVars = new ManagedEnvironmentVariables(originalEnvVars);
         ReflectionUtils.setClassField(
                 processingEnvironmentClass, "theUnmodifiableEnvironment", managedEnvVars);
+
+        if (originalEnvVars2 != null) {
+            ManagedEnvironmentVariables managedEnvVars2 =
+                    new ManagedEnvironmentVariables(originalEnvVars2, managedEnvVars);
+            ReflectionUtils.setClassField(
+                    processingEnvironmentClass, "theCaseInsensitiveEnvironment", managedEnvVars2);
+        }
 
         StdLogger.debug("Wrapped environment variables with managed environment variables");
 
         return managedEnvVars;
     }
 
-    private static void unwrapEnvVars(Map<String, String> originalEnvVars) throws Exception {
+    private static void unwrapEnvVars(Map<String, String> originalEnvVars,
+                                      Map<String, String> originalEnvVars2) throws Exception {
         Class processingEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
         ReflectionUtils.setClassField(
                 processingEnvironmentClass, "theUnmodifiableEnvironment", originalEnvVars);
-
+        if (originalEnvVars2 != null) {
+            ReflectionUtils.setClassField(
+                    processingEnvironmentClass, "theCaseInsensitiveEnvironment", originalEnvVars2);
+        }
         StdLogger.debug("Unwrapped environment variables to original values");
     }
 
@@ -261,7 +291,7 @@ public class LambdaRuntime {
         try {
             invocationHandler.stop();
 
-            unwrapEnvVars(originalEnvVars);
+            unwrapEnvVars(originalEnvVars, originalEnvVars2);
             unwrapSysProps(originalSysProps);
 
             unwrapStdOutStream(originalStdOutStream);
