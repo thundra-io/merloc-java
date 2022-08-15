@@ -1,0 +1,19 @@
+#!/bin/bash
+
+ARGS=("$@")
+
+echo "[MERLOC] Starting Lambda function with MerLoc wrapper ..."
+
+# Get original handler
+ORIGINAL_HANDLER="$_HANDLER"
+
+# Set MerLoc handler as entry point
+export _HANDLER="io.thundra.merloc.aws.lambda.gatekeeper.handler.GateKeeperLambdaHandler"
+
+# Check whether user handler is specified explicitly via env var
+if [ -z "$MERLOC_AWS_LAMBDA_HANDLER" ]; then
+  # If not, specify original handler as user handler
+  export MERLOC_AWS_LAMBDA_HANDLER="$ORIGINAL_HANDLER"
+fi
+
+exec $@

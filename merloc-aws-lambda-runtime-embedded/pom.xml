@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.thundra.merloc</groupId>
+        <artifactId>merloc-parent</artifactId>
+        <version>0.0.5-SNAPSHOT</version>
+    </parent>
+
+    <groupId>io.thundra.merloc</groupId>
+    <artifactId>merloc-aws-lambda-runtime-embedded</artifactId>
+    <name>merloc-aws-lambda-runtime-embedded</name>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.thundra.merloc</groupId>
+            <artifactId>merloc-common</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.thundra.merloc</groupId>
+            <artifactId>merloc-broker-client</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.thundra.merloc</groupId>
+            <artifactId>merloc-aws-lambda-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <configuration>
+                    <relocations>
+                        <relocation>
+                            <pattern>com.fasterxml</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.com.fasterxml</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.json</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.org.json</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>okhttp3</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.okhttp3</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>okio</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.okio</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>kotlin</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.kotlin</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.intellij</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.org.intellij</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.jetbrains</pattern>
+                            <shadedPattern>io.thundra.merloc.thirdparty.org.jetbrains</shadedPattern>
+                        </relocation>
+                    </relocations>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
