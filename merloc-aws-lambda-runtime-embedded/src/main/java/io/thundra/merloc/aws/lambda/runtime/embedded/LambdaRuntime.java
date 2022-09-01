@@ -4,6 +4,8 @@ import io.thundra.merloc.aws.lambda.runtime.embedded.function.FunctionEnvironmen
 import io.thundra.merloc.aws.lambda.runtime.embedded.handler.InvocationHandler;
 import io.thundra.merloc.aws.lambda.runtime.embedded.handler.InvocationHandlerFactory;
 import io.thundra.merloc.aws.lambda.runtime.embedded.io.ManagedOutputStream;
+import io.thundra.merloc.aws.lambda.runtime.embedded.phonehome.PhoneHomeService;
+import io.thundra.merloc.aws.lambda.runtime.embedded.phonehome.PhoneHomeServiceFactory;
 import io.thundra.merloc.common.config.ConfigManager;
 import io.thundra.merloc.common.logger.StdLogger;
 import io.thundra.merloc.common.utils.IOUtils;
@@ -37,8 +39,17 @@ public class LambdaRuntime {
     private static InvocationHandler invocationHandler;
     private static boolean started = false;
 
+    private static final PhoneHomeService phoneHomeService = PhoneHomeServiceFactory.get();
+
     static {
         UnsafeUtils.disableIllegalAccessWarning();
+
+        long startTime = System.currentTimeMillis();
+        phoneHomeService.runtimeUp(startTime);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            long finishTime = System.currentTimeMillis();
+            phoneHomeService.runtimeDown(startTime, finishTime);
+        }));
     }
 
     public static void main(String[] args) throws Exception {
