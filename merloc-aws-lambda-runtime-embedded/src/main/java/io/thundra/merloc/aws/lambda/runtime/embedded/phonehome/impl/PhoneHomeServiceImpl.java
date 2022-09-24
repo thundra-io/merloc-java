@@ -58,7 +58,7 @@ public class PhoneHomeServiceImpl implements PhoneHomeService {
             NetworkInterface ni = NetworkInterface.getByInetAddress(localHost);
             byte[] hardwareAddress = ni.getHardwareAddress();
             return UUID.nameUUIDFromBytes(hardwareAddress).toString();
-        } catch (UnknownHostException | SocketException e) {
+        } catch (Exception e) {
             StdLogger.debug("Unable to get machine hash", e);
             return null;
         }
@@ -69,15 +69,20 @@ public class PhoneHomeServiceImpl implements PhoneHomeService {
     }
 
     private int getJvmVersion() {
-        String[] versionElements = System.getProperty("java.version").split("\\.");
-        int discard = Integer.parseInt(versionElements[0]);
-        int version;
-        if (discard == 1) {
-            version = Integer.parseInt(versionElements[1]);
-        } else {
-            version = discard;
+        try {
+            String[] versionElements = System.getProperty("java.version").split("\\.");
+            int discard = Integer.parseInt(versionElements[0]);
+            int version;
+            if (discard == 1) {
+                version = Integer.parseInt(versionElements[1]);
+            } else {
+                version = discard;
+            }
+            return version;
+        } catch (Exception e) {
+            StdLogger.debug("Unable to get JVM version", e);
+            return -1;
         }
-        return version;
     }
 
     @Override
