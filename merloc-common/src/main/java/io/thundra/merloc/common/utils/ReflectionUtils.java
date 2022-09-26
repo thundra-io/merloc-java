@@ -15,7 +15,9 @@ public final class ReflectionUtils {
     }
 
     public static <T> T getObjectField(Object obj, String fieldName)
-            throws NoSuchFieldException, IllegalAccessException {
+            throws NoSuchFieldException {
+        Unsafe unsafe = UnsafeUtils.unsafe();
+
         Class clazz = obj.getClass();
         while (clazz != Object.class) {
             Field field = null;
@@ -24,8 +26,8 @@ public final class ReflectionUtils {
             } catch (Throwable t) {
             }
             if (field != null) {
-                field.setAccessible(true);
-                return (T) field.get(obj);
+                long fieldOffset = unsafe.objectFieldOffset(field);
+                return (T) unsafe.getObject(obj, fieldOffset);
             }
             clazz = clazz.getSuperclass();
         }
@@ -33,7 +35,9 @@ public final class ReflectionUtils {
     }
 
     public static <T> T getClassField(Class clazz, String fieldName)
-            throws NoSuchFieldException, IllegalAccessException {
+            throws NoSuchFieldException {
+        Unsafe unsafe = UnsafeUtils.unsafe();
+
         while (clazz != Object.class) {
             Field field = null;
             try {
@@ -41,8 +45,9 @@ public final class ReflectionUtils {
             } catch (Throwable t) {
             }
             if (field != null) {
-                field.setAccessible(true);
-                return (T) field.get(null);
+                Object fieldBase = unsafe.staticFieldBase(field);
+                long fieldOffset = unsafe.staticFieldOffset(field);
+                return (T) unsafe.getObject(fieldBase, fieldOffset);
             }
             clazz = clazz.getSuperclass();
         }
