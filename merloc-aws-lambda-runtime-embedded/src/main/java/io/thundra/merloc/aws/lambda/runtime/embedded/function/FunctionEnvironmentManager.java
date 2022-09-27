@@ -76,6 +76,7 @@ public class FunctionEnvironmentManager {
                     "AWS_ACCESS_KEY",
                     "AWS_ACCESS_KEY_ID",
                     "AWS_SECRET_KEY",
+                    "AWS_SECRET_ACCESS_KEY",
                     "AWS_SESSION_TOKEN",
                     "_X_AMZN_TRACE_ID"
             );
