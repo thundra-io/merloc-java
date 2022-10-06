@@ -352,10 +352,6 @@ public class InvocationExecutor implements Closeable {
             validationFailed = true;
             validationErrorBuilder.append("\t-").append("Function version cannot be empty").append("\n");
         }
-        if (StringUtils.isNullOrEmpty(runtime)) {
-            validationFailed = true;
-            validationErrorBuilder.append("\t-").append("Runtime cannot be empty").append("\n");
-        }
         if (envVars == null) {
             validationFailed = true;
             validationErrorBuilder.append("\t-").append("Environment variables cannot be empty").append("\n");
