@@ -4,7 +4,7 @@
 
     <groupId>io.thundra.merloc</groupId>
     <artifactId>merloc-parent</artifactId>
-    <version>0.0.11-SNAPSHOT</version>
+    <version>0.0.11</version>
     <packaging>pom</packaging>
 
     <name>MerLoc</name>
@@ -20,7 +20,7 @@
         <url>https://github.com/thundra-io/merloc-java.git</url>
         <connection>scm:git:https://${GITHUB_TOKEN}@github.com/thundra-io/merloc-java.git</connection>
         <developerConnection>scm:git:https://${GITHUB_TOKEN}@github.com/thundra-io/merloc-java.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>v0.0.11</tag>
     </scm>
     <developers>
         <developer>
