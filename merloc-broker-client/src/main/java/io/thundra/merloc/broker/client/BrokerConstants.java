@@ -5,12 +5,14 @@ package io.thundra.merloc.broker.client;
  */
 public interface BrokerConstants {
 
-    String BROKER_CONNECTION_TYPE = "gatekeeper";
+    String BROKER_CONNECTION_TYPE = "broker";
     String CLIENT_CONNECTION_TYPE = "client";
     String GATEKEEPER_CONNECTION_TYPE = "gatekeeper";
 
-    String CLIENT_CONNECTION_NAME_PREFIX = "client::";
-    String GATEKEEPER_CONNECTION_NAME_PREFIX = "gatekeeper::";
+    String CONNECTION_TYPE_SEPARATOR = "::";
+    String CONNECTION_API_KEY_SEPARATOR = "##";
+    String CLIENT_CONNECTION_NAME_PREFIX = "client" + CONNECTION_TYPE_SEPARATOR;
+    String GATEKEEPER_CONNECTION_NAME_PREFIX = "gatekeeper" + CONNECTION_TYPE_SEPARATOR;
 
     String DEFAULT_CLIENT_BROKER_CONNECTION_NAME = "default";
 

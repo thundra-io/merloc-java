@@ -31,6 +31,8 @@ public class WebSocketInvocationHandler implements InvocationHandler {
             "merloc.broker.url";
     private static final String BROKER_CONNECTION_NAME_CONFIG_NAME =
             "merloc.broker.connection.name";
+    private static final String API_KEY_CONFIG_NAME =
+            "merloc.apikey";
     private static final int BROKER_NORMAL_CLOSE_CODE = 1000;
     private static final String BROKER_NORMAL_CLOSE_REASON = "Bye";
 
@@ -67,10 +69,15 @@ public class WebSocketInvocationHandler implements InvocationHandler {
                 BrokerConstants.DEFAULT_CLIENT_BROKER_CONNECTION_NAME);
     }
 
+    private static String getApiKey() {
+        return ConfigManager.getConfig(API_KEY_CONFIG_NAME);
+    }
+
     @Override
     public void start() throws IOException {
         String url = getBrokerURL();
         String connectionName = getBrokerConnectionName();
+        String apiKey = getApiKey();
 
         if (StringUtils.isNullOrEmpty(url)) {
             throw new IllegalArgumentException("Broker URL is not configured");
@@ -82,7 +89,8 @@ public class WebSocketInvocationHandler implements InvocationHandler {
 
         BrokerCredentials credentials =
                 new BrokerCredentials().
-                        withConnectionName(BrokerConstants.CLIENT_CONNECTION_NAME_PREFIX + connectionName);
+                        withConnectionName(connectionName).
+                        withApiKey(apiKey);
 
         CompletableFuture connectedFuture = new CompletableFuture();
         connectedFuture.whenComplete((val, error) -> {

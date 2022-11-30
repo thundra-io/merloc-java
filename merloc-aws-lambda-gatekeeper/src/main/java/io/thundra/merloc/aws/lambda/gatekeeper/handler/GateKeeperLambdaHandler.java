@@ -75,6 +75,8 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
             ConfigManager.getConfig(
                     ConfigNames.BROKER_CONNECTION_NAME_CONFIG_NAME,
                     LambdaUtils.getEnvVar(AWS_LAMBDA_FUNCTION_NAME_ENV_VAR_NAME));
+    private static final String API_KEY =
+            ConfigManager.getConfig(ConfigNames.API_KEY_CONFIG_NAME);
     private static final int CLIENT_ACCESS_INTERVAL_ON_FAILURE =
             ConfigManager.getIntegerConfig(
                     ConfigNames.CLIENT_ACCESS_INTERVAL_ON_FAILURE, 0);
@@ -100,8 +102,8 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
             return BrokerClientFactory.createWebSocketClient(
                     BROKER_URL,
                     new BrokerCredentials().
-                            withConnectionName(
-                                    BrokerConstants.GATEKEEPER_CONNECTION_NAME_PREFIX + BROKER_CONNECTION_NAME),
+                            withConnectionName(BROKER_CONNECTION_NAME).
+                            withApiKey(API_KEY),
                     brokerMessageCallback, null, null);
         } catch (Exception e) {
             StdLogger.error("Unable to create broker client", e);

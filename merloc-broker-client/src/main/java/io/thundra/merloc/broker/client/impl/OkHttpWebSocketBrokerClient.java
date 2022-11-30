@@ -3,6 +3,7 @@ package io.thundra.merloc.broker.client.impl;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.thundra.merloc.broker.client.BrokerConstants;
 import io.thundra.merloc.broker.client.BrokerCredentials;
 import io.thundra.merloc.broker.client.BrokerEnvelope;
 import io.thundra.merloc.broker.client.BrokerMessage;
@@ -101,14 +102,28 @@ public final class OkHttpWebSocketBrokerClient
                 () -> envelopeGlue.cleanIdleEnvelopes(), 1, 1, TimeUnit.MINUTES);
     }
 
+    private static String getFullConnectionName(BrokerCredentials brokerCredentials) {
+        String connectionName = brokerCredentials.getConnectionName();
+        String apiKey = brokerCredentials.getApiKey();
+        if (connectionName != null) {
+            String fullConnectionName = BrokerConstants.CLIENT_CONNECTION_NAME_PREFIX + connectionName;
+            if (apiKey != null) {
+                fullConnectionName += BrokerConstants.CONNECTION_API_KEY_SEPARATOR + apiKey;
+            }
+            return fullConnectionName;
+        }
+        return null;
+    }
+
     private static Request buildRequest(String url,
                                         BrokerCredentials brokerCredentials,
                                         Map<String, String> headers) {
         Request.Builder builder = new Request.Builder();
         url = normalizeBrokerUrl(url);
         builder.url(url);
-        if (brokerCredentials.getConnectionName() != null) {
-            builder.header(API_KEY_HEADER_NAME, brokerCredentials.getConnectionName());
+        String fullConnectionName = getFullConnectionName(brokerCredentials);
+        if (fullConnectionName != null) {
+            builder.header(API_KEY_HEADER_NAME, fullConnectionName);
         }
         if (headers != null) {
             for (Map.Entry<String, String> e : headers.entrySet()) {
