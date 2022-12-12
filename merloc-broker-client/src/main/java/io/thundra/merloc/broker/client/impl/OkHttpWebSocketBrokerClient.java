@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -62,6 +63,8 @@ public final class OkHttpWebSocketBrokerClient
             new ObjectMapper().
                     configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false).
                     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    private final ExecutorService messageHandlerExecutorService =
+            ExecutorUtils.newCachedExecutorService("broker-client-message-handler", false);
     private final ScheduledExecutorService inFlightMessageCleanerExecutorService =
             ExecutorUtils.newScheduledExecutorService(1, "broker-client-inflight-cleaner");
     private final ScheduledExecutorService idleEnvelopeCleanerExecutorService =
@@ -393,7 +396,13 @@ public final class OkHttpWebSocketBrokerClient
                 }
             }
             if (messageCallback != null) {
-                messageCallback.onMessage(this, message);
+                messageHandlerExecutorService.submit(() -> {
+                    try {
+                        messageCallback.onMessage(this, message);
+                    } catch (Throwable error) {
+                        StdLogger.error(String.format("Unable to handle broker message: %s", message), error);
+                    }
+                });
             }
         } catch (Throwable error) {
             StdLogger.error(String.format("Unable to handle broker message: %s", message), error);
