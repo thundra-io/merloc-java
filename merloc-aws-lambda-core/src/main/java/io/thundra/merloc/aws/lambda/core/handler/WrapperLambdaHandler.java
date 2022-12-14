@@ -15,6 +15,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -205,8 +206,10 @@ public class WrapperLambdaHandler implements RequestStreamHandler {
 
                 responseSerializer.toJson(response, outputStream);
             } catch (Throwable t) {
+                if (t instanceof InvocationTargetException) {
+                    t = ((InvocationTargetException) t).getTargetException();
+                }
                 ExceptionUtils.sneakyThrow(t);
-                throw new IOException("Error occurred while invoking handler", t);
             }
         }
     }
@@ -245,8 +248,10 @@ public class WrapperLambdaHandler implements RequestStreamHandler {
             } catch (IOException e) {
                 throw e;
             } catch (Throwable t) {
+                if (t instanceof InvocationTargetException) {
+                    t = ((InvocationTargetException) t).getTargetException();
+                }
                 ExceptionUtils.sneakyThrow(t);
-                throw new IOException("Error occurred while invoking handler", t);
             }
         }
 
