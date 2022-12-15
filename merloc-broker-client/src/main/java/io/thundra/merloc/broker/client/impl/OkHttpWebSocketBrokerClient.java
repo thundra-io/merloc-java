@@ -3,6 +3,7 @@ package io.thundra.merloc.broker.client.impl;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.thundra.merloc.broker.client.BrokerConnectionType;
 import io.thundra.merloc.broker.client.BrokerConstants;
 import io.thundra.merloc.broker.client.BrokerCredentials;
 import io.thundra.merloc.broker.client.BrokerEnvelope;
@@ -107,9 +108,13 @@ public final class OkHttpWebSocketBrokerClient
 
     private static String getFullConnectionName(BrokerCredentials brokerCredentials) {
         String connectionName = brokerCredentials.getConnectionName();
+        BrokerConnectionType connectionType = brokerCredentials.getConnectionType();
+        if (connectionType == null) {
+            throw new IllegalArgumentException("No connection type was specified in broker credentials");
+        }
         String apiKey = brokerCredentials.getApiKey();
         if (connectionName != null) {
-            String fullConnectionName = BrokerConstants.CLIENT_CONNECTION_NAME_PREFIX + connectionName;
+            String fullConnectionName = connectionType.getConnectionNamePrefix() + connectionName;
             if (apiKey != null) {
                 fullConnectionName += BrokerConstants.CONNECTION_API_KEY_SEPARATOR + apiKey;
             }

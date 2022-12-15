@@ -8,6 +8,7 @@ import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.lambda.runtime.serialization.PojoSerializer;
 import io.thundra.merloc.broker.client.BrokerClient;
 import io.thundra.merloc.broker.client.BrokerClientFactory;
+import io.thundra.merloc.broker.client.BrokerConnectionType;
 import io.thundra.merloc.broker.client.BrokerConstants;
 import io.thundra.merloc.broker.client.BrokerCredentials;
 import io.thundra.merloc.broker.client.BrokerMessage;
@@ -109,6 +110,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                     BROKER_URL,
                     new BrokerCredentials().
                             withConnectionName(BROKER_CONNECTION_NAME).
+                            withConnectionType(BrokerConnectionType.GATEKEEPER).
                             withApiKey(API_KEY),
                     brokerMessageCallback, null, null);
         } catch (Exception e) {

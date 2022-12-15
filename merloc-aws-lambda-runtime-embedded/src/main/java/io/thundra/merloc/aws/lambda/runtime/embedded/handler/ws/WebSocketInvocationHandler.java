@@ -2,6 +2,7 @@ package io.thundra.merloc.aws.lambda.runtime.embedded.handler.ws;
 
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.ErrorCoded;
 import io.thundra.merloc.aws.lambda.runtime.embedded.exception.HandlerExecutionException;
+import io.thundra.merloc.broker.client.BrokerConnectionType;
 import io.thundra.merloc.broker.client.BrokerConstants;
 import io.thundra.merloc.broker.client.BrokerCredentials;
 import io.thundra.merloc.broker.client.BrokerMessageCallback;
@@ -90,6 +91,7 @@ public class WebSocketInvocationHandler implements InvocationHandler {
         BrokerCredentials credentials =
                 new BrokerCredentials().
                         withConnectionName(connectionName).
+                        withConnectionType(BrokerConnectionType.CLIENT).
                         withApiKey(apiKey);
 
         CompletableFuture connectedFuture = new CompletableFuture();

@@ -6,6 +6,7 @@ package io.thundra.merloc.broker.client;
 public class BrokerCredentials {
 
     private String connectionName;
+    private BrokerConnectionType connectionType;
     private String apiKey;
 
     public String getConnectionName() {
@@ -18,6 +19,19 @@ public class BrokerCredentials {
 
     public BrokerCredentials withConnectionName(String connectionName) {
         this.connectionName = connectionName;
+        return this;
+    }
+
+    public BrokerConnectionType getConnectionType() {
+        return connectionType;
+    }
+
+    public void setConnectionType(BrokerConnectionType connectionType) {
+        this.connectionType = connectionType;
+    }
+
+    public BrokerCredentials withConnectionType(BrokerConnectionType connectionType) {
+        this.connectionType = connectionType;
         return this;
     }
 
