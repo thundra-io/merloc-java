@@ -66,7 +66,9 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
     private static final String AWS_LAMBDA_CLIENT_CONTEXT_ATTRIBUTE_NAME = "clientContext";
     private static final String AWS_LAMBDA_COGNITO_IDENTITY_ATTRIBUTE_NAME = "cognitoIdentity";
     private static final String AWS_LAMBDA_REQUEST_ATTRIBUTE_NAME = "request";
-    
+
+    private static final int DEFAULT_BROKER_REQUEST_WAIT_MARGIN = 1000;
+
     private static final boolean ENABLE =
             ConfigManager.getBooleanConfig(ConfigNames.ENABLE, true);
     private static final String BROKER_URL =
@@ -75,6 +77,10 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
             ConfigManager.getConfig(
                     ConfigNames.BROKER_CONNECTION_NAME_CONFIG_NAME,
                     LambdaUtils.getEnvVar(AWS_LAMBDA_FUNCTION_NAME_ENV_VAR_NAME));
+    private static final int BROKER_REQUEST_WAIT_MARGIN =
+            ConfigManager.getIntegerConfig(
+                    ConfigNames.BROKER_REQUEST_WAIT_MARGIN_CONFIG_NAME,
+                    DEFAULT_BROKER_REQUEST_WAIT_MARGIN);
     private static final String API_KEY =
             ConfigManager.getConfig(ConfigNames.API_KEY_CONFIG_NAME);
     private static final int CLIENT_ACCESS_INTERVAL_ON_FAILURE =
@@ -213,7 +219,8 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                 BrokerMessage clientResponse =
                         brokerClient.sendAndGetResponse(
                                 clientRequest,
-                                context.getRemainingTimeInMillis(), TimeUnit.MILLISECONDS);
+                                Math.max(context.getRemainingTimeInMillis() - BROKER_REQUEST_WAIT_MARGIN, 0),
+                                TimeUnit.MILLISECONDS);
                 if (clientResponse == null) {
                     // No response neither from client nor from broker.
                     // So update the latest client access fail time.
