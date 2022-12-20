@@ -119,7 +119,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
         }
     }
 
-    private BrokerMessage createClientRequest(Context context, String requestData) throws IOException {
+    private BrokerMessage createClientRequest(Context context, String requestData, BrokerClient brokerClient) throws IOException {
         Data data = new Data();
 
         data.put(AWS_LAMBDA_REGION_ATTRIBUTE_NAME, LambdaUtils.getEnvVar(AWS_REGION_ENV_VAR_NAME));
@@ -156,7 +156,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
         return new BrokerMessage().
                 withId(UUID.randomUUID().toString()).
                 withType(BrokerConstants.CLIENT_REQUEST_MESSAGE_TYPE).
-                withConnectionName(BROKER_CONNECTION_NAME).
+                withConnectionName(brokerClient.getFullConnectionName()).
                 withSourceConnectionType(BrokerConstants.GATEKEEPER_CONNECTION_TYPE).
                 withTargetConnectionType(BrokerConstants.CLIENT_CONNECTION_TYPE).
                 withData(data);
@@ -217,7 +217,7 @@ public class GateKeeperLambdaHandler extends WrapperLambdaHandler {
                             "Forwarding request to client: %s", requestData));
                 }
 
-                BrokerMessage clientRequest = createClientRequest(context, requestData);
+                BrokerMessage clientRequest = createClientRequest(context, requestData, brokerClient);
                 BrokerMessage clientResponse =
                         brokerClient.sendAndGetResponse(
                                 clientRequest,

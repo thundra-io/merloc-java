@@ -77,6 +77,7 @@ public final class OkHttpWebSocketBrokerClient
     private final BrokerMessageCallback messageCallback;
     private final CompletableFuture<Boolean> connectedFuture;
     private final CompletableFuture<Boolean> closedFuture;
+    private final String fullConnectionName;
 
     public OkHttpWebSocketBrokerClient(String url,
                                        BrokerCredentials brokerCredentials,
@@ -102,11 +103,12 @@ public final class OkHttpWebSocketBrokerClient
         Request request = buildRequest(url, brokerCredentials, headers);
         this.client = baseClient.newBuilder().build();
         this.webSocket = client.newWebSocket(request, this);
+        this.fullConnectionName = generateFullConnectionName(brokerCredentials);
         idleEnvelopeCleanerExecutorService.scheduleAtFixedRate(
                 () -> envelopeGlue.cleanIdleEnvelopes(), 1, 1, TimeUnit.MINUTES);
     }
 
-    private static String getFullConnectionName(BrokerCredentials brokerCredentials) {
+    private static String generateTypedFullConnectionName(BrokerCredentials brokerCredentials) {
         String connectionName = brokerCredentials.getConnectionName();
         BrokerConnectionType connectionType = brokerCredentials.getConnectionType();
         if (connectionType == null) {
@@ -114,11 +116,11 @@ public final class OkHttpWebSocketBrokerClient
         }
         String apiKey = brokerCredentials.getApiKey();
         if (connectionName != null) {
-            String fullConnectionName = connectionType.getConnectionNamePrefix() + connectionName;
+            String typedFullConnectionName = connectionType.getConnectionNamePrefix() + connectionName;
             if (apiKey != null) {
-                fullConnectionName += BrokerConstants.CONNECTION_API_KEY_SEPARATOR + apiKey;
+                typedFullConnectionName += BrokerConstants.CONNECTION_API_KEY_SEPARATOR + apiKey;
             }
-            return fullConnectionName;
+            return typedFullConnectionName;
         }
         return null;
     }
@@ -129,9 +131,9 @@ public final class OkHttpWebSocketBrokerClient
         Request.Builder builder = new Request.Builder();
         url = normalizeBrokerUrl(url);
         builder.url(url);
-        String fullConnectionName = getFullConnectionName(brokerCredentials);
-        if (fullConnectionName != null) {
-            builder.header(API_KEY_HEADER_NAME, fullConnectionName);
+        String typedFullConnectionName = generateTypedFullConnectionName(brokerCredentials);
+        if (typedFullConnectionName != null) {
+            builder.header(API_KEY_HEADER_NAME, typedFullConnectionName);
         }
         if (headers != null) {
             for (Map.Entry<String, String> e : headers.entrySet()) {
@@ -151,7 +153,21 @@ public final class OkHttpWebSocketBrokerClient
         }
     }
 
+    private static String generateFullConnectionName(BrokerCredentials brokerCredentials) {
+        String connectionName = brokerCredentials.getConnectionName();
+        String apiKey = brokerCredentials.getApiKey();
+        if (apiKey != null) {
+            connectionName += BrokerConstants.CONNECTION_API_KEY_SEPARATOR + apiKey;
+        }
+        return connectionName;
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public String getFullConnectionName() {
+        return fullConnectionName;
+    }
 
     @Override
     public boolean isConnected() {

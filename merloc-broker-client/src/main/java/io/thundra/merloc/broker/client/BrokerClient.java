@@ -8,6 +8,8 @@ import java.util.concurrent.TimeUnit;
  */
 public interface BrokerClient {
 
+    String getFullConnectionName();
+
     boolean isConnected();
     boolean waitUntilConnected();
     boolean waitUntilConnected(long timeout, TimeUnit unit);
